@@ -48,7 +48,7 @@ class TableConstraint(Constraint):
                 return True
         return assignments in self.satAssignments # return list of whichever assignments are valid (listed in satisfyingAssignments)
 
-    def hasSupport(self, var,val):
+    def hasSupport(self, var, val):
         '''check if var=val has an extension to an assignment of all variables in
         constraint's scope that satisfies the constraint. Important only to
         examine values in the variable's current domain as possible extensions. 
@@ -112,8 +112,8 @@ class State:
         a variable.'''
 
         # for every (i,j) cell on the board, create a variable:
-        for i in range(self.dim):
-            for j in range(self.dim):
+        for i in range(self.dim): # for each row
+            for j in range(self.dim): # for each col
                 v = None
                 if state.board[i][j] != '0': # if has been assigned
                     # create a new variable:
@@ -121,7 +121,24 @@ class State:
                     v = Variable(str((i*self.dim+j)), [self.board[i][j]])
                 else:
                     # create a new variable:
-                    v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','v','M']) # variable with full domain 
+                    if i == 0 and j == 0: # top left corner
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','^']) # can't have 'v' or '>' or 'M' piece
+                    elif i == self.dim-1 and j == self.dim-1: # bottom right corner
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','v']) # can't have '^' or '<' piece
+                    elif i == 0 and j == self.dim-1: # top right corner
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','^']) # can't have 'v' or '<' piece
+                    elif i == self.dim-1 and j == 0: # bottom left corner
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','v']) # can't have '^' or '>' piece
+                    elif i == 0: # top edge
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','M']) # can't have 'v' piece
+                    elif i == self.dim-1: # bottom edge
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','v','M']) # can't have '^' piece
+                    elif j == self.dim-1: # right edge
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','^','v','M']) # can't have '<' piece
+                    elif j == 0: # left edge
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','^','v','M']) # can't have '>' piece
+                    else:
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','v','M']) # variable with full domain 
                 self.variables.append(v)
                 self.varn[str((i*self.dim+j))] = v
                 # add the variable to the board:
@@ -373,15 +390,15 @@ class row_col_constraints(Constraint):
         self.row_constraints = row_constraints
         self.col_constraints = col_constraints
 
-    def check(self):
-        '''Loop through every variable in the scope and checks if it breaks 
-        the constraint.'''
+    def check(self, k):
+        '''Loop through every variable in the scope (variables in row or column 
+        k and checks if it breaks the constraint.'''
 
         assignments = [] # list of values for the row or col
         ship_parts = 0 # initialize number of ship parts in the row or col
         num =  # number of ship parts in the row or col
 
-        for v in self.scope():
+        for v in self.scope()[k]: # loop through variables in row or col k
             if v.isAssigned():
                 assignments.append(v.getValue())
                 # increment ship_parts if the value is a ship part:
@@ -398,6 +415,9 @@ class row_col_constraints(Constraint):
         def hasSupport(self, var, val):
             '''Checks if the variables other than the one assigned (val) are 
             a valid combination overall with this one constraint.'''
+            if var not in self.scope():
+                return True # var=val has support on any constraint it does not participate in
+            
             pass
 
 #object for holding a constraint problem
