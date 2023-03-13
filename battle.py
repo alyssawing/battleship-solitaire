@@ -70,56 +70,6 @@ class TableConstraint(Constraint):
                 break
         return found  # either way found has the right truth value; returns True if this assignment works for this one constraint 
 
-def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
-    '''Helper function for finding an assignment to the variables of a constraint
-    that together with var=val satisfy the constraint. That is, this
-    function looks for a supporing tuple.
-
-    findvals uses recursion to build up a complete assignment, one value
-    from every variable's current domain, along with var=val.
-    It tries all ways of constructing such an assignment (using recursive DFS).
-
-    If partialTestfn is supplied, it will use this function to test
-    all partial assignments---if the function returns False
-    it will terminate trying to grow that assignment.
-
-    It will test all full assignments to "allVars" using finalTestfn
-    returning once it finds a full assignment that passes this test.
-
-    returns True if it finds a suitable full assignment, False if none
-    exist. (yes we are using an algorithm that is exactly like backtracking!)'''
-
-    '''finalTestfn returns True if the assignment is a solution to the constraint.
-    That's the function where we implement the constraint. partialTestfn 
-    returns True if the assignment is a partial solution to the constraint. It 
-    works by 
-    '''
-
-    # print "==>findvars([",
-    # for v in remainingVars: print v.name(), " ",
-    # print "], [",
-    # for x,y in assignment: print "({}={}) ".format(x.name(),y),
-    # print ""
-
-    #sort the variables call the internal version with the variables sorted
-    remainingVars.sort(reverse=True, key=lambda v: v.curDomainSize())
-    return findvals_(remainingVars, assignment, finalTestfn, partialTestfn)
-
-def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
-    '''findvals_ internal function with remainingVars sorted by the size of
-    their current domain'''
-    if len(remainingVars) == 0:
-        return finalTestfn(assignment)
-    var = remainingVars.pop()
-    for val in var.curDomain():
-        assignment.append((var, val))
-        if partialTestfn(assignment):
-            if findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
-                return True
-        assignment.pop()   #(var,val) didn't work since we didn't do the return
-    remainingVars.append(var)
-    return False
-
 class State:
     '''Class for defining a state. '''
 
@@ -413,6 +363,42 @@ class NValuesConstraint(Constraint): #TODO modify starter code
         x = findvals(varsToAssign, [(var, val)], valsOK, valsOK)
         return x
 
+class row_col_constraints(Constraint):
+    '''Ensures that the number of ship parts in a row or column correspond to 
+    the given numbers of how many ships parts should be in that row or column 
+    (self.row_constraints and self.col_constraints).'''
+    def __init__(self, name, scope, row_constraints, col_constraints):
+        Constraint.__init__(self, name, scope)
+        self._name = "row_col_constraints" + name
+        self.row_constraints = row_constraints
+        self.col_constraints = col_constraints
+
+    def check(self):
+        '''Loop through every variable in the scope and checks if it breaks 
+        the constraint.'''
+
+        assignments = [] # list of values for the row or col
+        ship_parts = 0 # initialize number of ship parts in the row or col
+        num =  # number of ship parts in the row or col
+
+        for v in self.scope():
+            if v.isAssigned():
+                assignments.append(v.getValue())
+                # increment ship_parts if the value is a ship part:
+                if v.getValue() == 'S' or v.getValue() == 'M' or v.getValue() == '<'\
+                    or v.getValue() == '>' or v.getValue() == '^' or v.getValue() == 'v':
+                    ship_parts += 1
+            else:
+                # if ship_parts <= row or col constraint TODO??????????
+                return True # if not all variables are assigned, return True
+        pass
+        # for ass in assignments:
+        # # return 
+
+        def hasSupport(self, var, val):
+            '''Checks if the variables other than the one assigned (val) are 
+            a valid combination overall with this one constraint.'''
+            pass
 
 #object for holding a constraint problem
 class CSP:
@@ -547,6 +533,58 @@ def backtrack(assignment, csp):
                 return result
         assignment.pop(var) # remove var from assignment
     return False # failure; no solution
+
+
+def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
+    '''Helper function for finding an assignment to the variables of a constraint
+    that together with var=val satisfy the constraint. That is, this
+    function looks for a supporing tuple.
+
+    findvals uses recursion to build up a complete assignment, one value
+    from every variable's current domain, along with var=val.
+    It tries all ways of constructing such an assignment (using recursive DFS).
+
+    If partialTestfn is supplied, it will use this function to test
+    all partial assignments---if the function returns False
+    it will terminate trying to grow that assignment.
+
+    It will test all full assignments to "allVars" using finalTestfn
+    returning once it finds a full assignment that passes this test.
+
+    returns True if it finds a suitable full assignment, False if none
+    exist. (yes we are using an algorithm that is exactly like backtracking!)'''
+
+    '''finalTestfn returns True if the assignment is a solution to the constraint.
+    That's the function where we implement the constraint. partialTestfn 
+    returns True if the assignment is a partial solution to the constraint. It 
+    works by 
+    '''
+
+    # print "==>findvars([",
+    # for v in remainingVars: print v.name(), " ",
+    # print "], [",
+    # for x,y in assignment: print "({}={}) ".format(x.name(),y),
+    # print ""
+
+    #sort the variables call the internal version with the variables sorted
+    remainingVars.sort(reverse=True, key=lambda v: v.curDomainSize()) # sort by variables with the largest domain size (LCV)
+    return findvals_(remainingVars, assignment, finalTestfn, partialTestfn)
+
+def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
+    '''findvals_ internal function with remainingVars sorted by the size of
+    their current domain'''
+    if len(remainingVars) == 0: #if there are no more variables to assign
+        return finalTestfn(assignment) # return the final test function (True if the constraint is satisfied)
+    var = remainingVars.pop() # get the variable with the largest domain size
+    for val in var.curDomain(): # for each value in the variable's domain
+        assignment.append((var, val)) # add the variable and value to the assignment
+        if partialTestfn(assignment): # if the partial test function returns true (the assignment is a partial solution to the constraint)
+            if findvals_(remainingVars, assignment, finalTestfn, partialTestfn): # recursively call findvals_ to find the next variable in the assignment
+                return True
+        assignment.pop()   #(var,val) didn't work since we didn't do the return
+    remainingVars.append(var) # put the variable back in the list of remaining variables - nothing works for this value
+    return False
+
 
 if __name__ == '__main__':
 
