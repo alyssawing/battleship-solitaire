@@ -1,17 +1,50 @@
 import sys
 
+class State:
+    '''Class for defining a state. '''
+
+    def __init__(self):
+        self.board = []
+        self.dim = None # dimensions of the board (n x n)
+        self.row_constraints = None
+        self.col_constraints = None
+        self.ship_constraints = None
+
+    def display(self):
+        for i in self.board:
+            for j in i:
+                print(j, end="") 
+            print("")
+        print("")
+
+    def read_from_file(self, filename):
+        f = open(filename)
+        lines = f.readlines()
+        
+        # the first 3 lines are not in the board:
+        self.row_constraints = lines[0].split()
+        self.col_constraints = lines[1].split() 
+        self.ship_constraints = lines[2].split()
+
+        # the rest of the lines are in the board:
+        for l in lines[3:]:
+            self.board.append([str(x) for x in l.rstrip()])
+        # board = [[str(x) for x in l.rstrip()] for l in lines]
+
+        f.close()
+
 class Variable:
     '''Class for defining CSP variables.
 
-      On initialization the variable object can be given a name and a
-      list containing variable's domain of values. You can reset the
-      variable's domain if you want to solve a similar problem where
-      the domains have changed.
+    On initialization the variable object can be given a name and a
+    list containing variable's domain of values. You can reset the
+    variable's domain if you want to solve a similar problem where
+    the domains have changed.
 
-      To support CSP propagation, the class also maintains a current
-      domain for the variable. Values pruned from the variable domain
-      are removed from the current domain but not from the original
-      domain. Values can be also restored.
+    To support CSP propagation, the class also maintains a current
+    domain for the variable. Values pruned from the variable domain
+    are removed from the current domain but not from the original
+    domain. Values can be also restored.
     '''
 
     undoDict = dict()             #stores pruned values indexed by a
@@ -60,7 +93,7 @@ class Variable:
 
     def curDomain(self):
         '''return copy of variable current domain. But if variable is assigned
-           return just its assigned value (this makes implementing hasSupport easier'''
+        return just its assigned value (this makes implementing hasSupport easier'''
         if self.isAssigned():
             return([self.getValue()])
         return(list(self._curdom))
@@ -118,19 +151,19 @@ class Variable:
 #implement various types of constraints
 class Constraint:
     '''Base class for defining constraints. Each constraint can check if
-       it has been satisfied, so each type of constraint must be a
-       different class. For example a constraint of notEquals(V1,V2)
-       must be a different class from a constraint of
-       greaterThan(V1,V2), as they must implement different checks of
-       satisfaction.
+    it has been satisfied, so each type of constraint must be a
+    different class. For example a constraint of notEquals(V1,V2)
+    must be a different class from a constraint of
+    greaterThan(V1,V2), as they must implement different checks of
+    satisfaction.
 
-       However one can define a class of general table constraints, as
-       below, that can capture many different constraints.
+    However one can define a class of general table constraints, as
+    below, that can capture many different constraints.
 
-       On initialization the constraint's name can be given as well as
-       the constraint's scope. IMPORTANT, the scope is ordered! E.g.,
-       the constraint greaterThan(V1,V2) is not the same as the
-       contraint greaterThan(V2,V1).
+    On initialization the constraint's name can be given as well as
+    the constraint's scope. IMPORTANT, the scope is ordered! E.g.,
+    the constraint greaterThan(V1,V2) is not the same as the
+    contraint greaterThan(V2,V1).
     '''
     def __init__(self, name, scope):
         '''create a constraint object, specify the constraint name (a
@@ -172,13 +205,13 @@ class Constraint:
 #object for holding a constraint problem
 class CSP:
     '''CSP class groups together a set of variables and a set of
-       constraints to form a CSP problem. Provides a usesful place
-       to put some other functions that depend on which variables
-       and constraints are active'''
+    constraints to form a CSP problem. Provides a usesful place
+    to put some other functions that depend on which variables
+    and constraints are active'''
 
     def __init__(self, name, variables, constraints):
         '''create a CSP problem object passing it a name, a list of
-           variable objects, and a list of constraint objects'''
+        variable objects, and a list of constraint objects'''
         self._name = name
         self._variables = variables
         self._constraints = constraints
@@ -224,8 +257,8 @@ class CSP:
 
     def check(self, solutions):
         '''each solution is a list of (var, value) pairs. Check to see
-           if these satisfy all the constraints. Return list of
-           erroneous solutions'''
+        if these satisfy all the constraints. Return list of
+        erroneous solutions'''
 
         #save values to restore later
         current_values = [(var, var.getValue()) for var in self.variables()]
@@ -261,3 +294,58 @@ class CSP:
     
     def __str__(self):
         return "CSP {}".format(self.name())
+    
+
+def select_unassigned_variable(csp):
+    '''TODO'''
+    # return csp.variables()[0]
+    # return min(csp.variables(), key=lambda var: len(var.curDomain()))
+    pass
+
+def order_domain_values(var, assignment, csp):
+    '''TODO. Try all possible values for unassigned variable'''
+    # return var.curDomain()
+    pass
+
+def is_consistent(var, value, assignment, csp):
+    '''TODO. Check if value is consistent with the assignment and constraints?'''
+    # return True
+    pass
+
+# Backtracking search:
+def backtrack_search(csp):
+    return backtrack_search({}, csp)
+
+def backtrack(assignment, csp):
+    # if assignment is complete, return assignment TODO - check what "complete" is and later implement forward checking 
+    if len(assignment) == len(csp.variables()):
+        return assignment
+    var = select_unassigned_variable(csp)
+    for value in order_domain_values(var, assignment, csp):
+        if is_consistent(var, value, assignment, csp):
+            assignment[var] = value
+            # inferences = inference(var, value, assignment, csp)
+            # if inferences != False:
+            #     assignment.update(inferences)
+            #     result = backtrack(assignment, csp)
+            #     if result != False:
+            #         return result
+            # assignment.pop(var)
+            result = backtrack(assignment, csp) # look at remaining unassigned variables (recursive call
+            if result != False: # if result is not a failure
+                return result
+        assignment.pop(var) # remove var from assignment
+    return False # failure; no solution
+
+if __name__ == '__main__':
+
+    # read a test file
+    filename = 'input.txt'
+    
+    state = State()
+    state.read_from_file(filename)
+    state.display()
+    print("row constraints:", state.row_constraints)
+    print("col constraints:", state.col_constraints)
+    print("ship constraints:", state.ship_constraints)
+

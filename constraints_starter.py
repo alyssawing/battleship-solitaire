@@ -1,36 +1,35 @@
 from csp import Constraint, Variable
 
-
 class TableConstraint(Constraint):
     '''General type of constraint that can be use to implement any type of
-       constraint. But might require a lot of space to do so.
+        constraint. But might require a lot of space to do so.
 
-       A table constraint explicitly stores the set of satisfying
-       tuples of assignments.'''
+        A table constraint explicitly stores the set of satisfying
+        tuples of assignments.'''
 
     def __init__(self, name, scope, satisfyingAssignments):
         '''Init by specifying a name and a set variables the constraint is over.
-           Along with a list of satisfying assignments.
-           Each satisfying assignment is itself a list, of length equal to
-           the number of variables in the constraints scope.
-           If sa is a single satisfying assignment, e.g, sa=satisfyingAssignments[0]
-           then sa[i] is the value that will be assigned to the variable scope[i].
+            Along with a list of satisfying assignments.
+            Each satisfying assignment is itself a list, of length equal to
+            the number of variables in the constraints scope.
+            If sa is a single satisfying assignment, e.g, sa=satisfyingAssignments[0]
+            then sa[i] is the value that will be assigned to the variable scope[i].
 
 
-           Example, say you want to specify a constraint alldiff(A,B,C,D) for
-           three variables A, B, C each with domain [1,2,3,4]
-           Then you would create this constraint using the call
-           c = TableConstraint('example', [A,B,C,D],
-                               [[1, 2, 3, 4], [1, 2, 4, 3], [1, 3, 2, 4],
-                                [1, 3, 4, 2], [1, 4, 2, 3], [1, 4, 3, 2],
-                                [2, 1, 3, 4], [2, 1, 4, 3], [2, 3, 1, 4],
-                                [2, 3, 4, 1], [2, 4, 1, 3], [2, 4, 3, 1],
-                                [3, 1, 2, 4], [3, 1, 4, 2], [3, 2, 1, 4],
-                                [3, 2, 4, 1], [3, 4, 1, 2], [3, 4, 2, 1],
-                                [4, 1, 2, 3], [4, 1, 3, 2], [4, 2, 1, 3],
-                                [4, 2, 3, 1], [4, 3, 1, 2], [4, 3, 2, 1]])
-          as these are the only assignments to A,B,C respectively that
-          satisfy alldiff(A,B,C,D)
+            Example, say you want to specify a constraint alldiff(A,B,C,D) for
+            three variables A, B, C each with domain [1,2,3,4]
+            Then you would create this constraint using the call
+            c = TableConstraint('example', [A,B,C,D],
+                                [[1, 2, 3, 4], [1, 2, 4, 3], [1, 3, 2, 4],
+                                    [1, 3, 4, 2], [1, 4, 2, 3], [1, 4, 3, 2],
+                                    [2, 1, 3, 4], [2, 1, 4, 3], [2, 3, 1, 4],
+                                    [2, 3, 4, 1], [2, 4, 1, 3], [2, 4, 3, 1],
+                                    [3, 1, 2, 4], [3, 1, 4, 2], [3, 2, 1, 4],
+                                    [3, 2, 4, 1], [3, 4, 1, 2], [3, 4, 2, 1],
+                                    [4, 1, 2, 3], [4, 1, 3, 2], [4, 2, 1, 3],
+                                    [4, 2, 3, 1], [4, 3, 1, 2], [4, 3, 2, 1]])
+            as these are the only assignments to A,B,C respectively that
+            satisfy alldiff(A,B,C,D)
         '''
 
         Constraint.__init__(self,name, scope)
@@ -49,8 +48,8 @@ class TableConstraint(Constraint):
 
     def hasSupport(self, var,val):
         '''check if var=val has an extension to an assignment of all variables in
-           constraint's scope that satisfies the constraint. Important only to
-           examine values in the variable's current domain as possible extensions'''
+        constraint's scope that satisfies the constraint. Important only to
+        examine values in the variable's current domain as possible extensions'''
         if var not in self.scope():
             return True   #var=val has support on any constraint it does not participate in
         vindex = self.scope().index(var)
@@ -63,31 +62,31 @@ class TableConstraint(Constraint):
                 if i != vindex and not v.inCurDomain(assignment[i]):
                     found = False  #Bummer...this assignment didn't work it assigns
                     break          #a value to v that is not in v's curDomain
-                                   #note we skip checking if val in in var's curDomain
+                                    #note we skip checking if val in in var's curDomain
             if found:     #if found still true the assigment worked. We can stop
                 break
         return found     #either way found has the right truth value
 
 def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
     '''Helper function for finding an assignment to the variables of a constraint
-       that together with var=val satisfy the constraint. That is, this
-       function looks for a supporing tuple.
+    that together with var=val satisfy the constraint. That is, this
+    function looks for a supporing tuple.
 
-       findvals uses recursion to build up a complete assignment, one value
-       from every variable's current domain, along with var=val.
+    findvals uses recursion to build up a complete assignment, one value
+    from every variable's current domain, along with var=val.
 
-       It tries all ways of constructing such an assignment (using
-       a recursive depth-first search).
+    It tries all ways of constructing such an assignment (using
+    a recursive depth-first search).
 
-       If partialTestfn is supplied, it will use this function to test
-       all partial assignments---if the function returns False
-       it will terminate trying to grow that assignment.
+    If partialTestfn is supplied, it will use this function to test
+    all partial assignments---if the function returns False
+    it will terminate trying to grow that assignment.
 
-       It will test all full assignments to "allVars" using finalTestfn
-       returning once it finds a full assignment that passes this test.
+    It will test all full assignments to "allVars" using finalTestfn
+    returning once it finds a full assignment that passes this test.
 
-       returns True if it finds a suitable full assignment, False if none
-       exist. (yes we are using an algorithm that is exactly like backtracking!)'''
+    returns True if it finds a suitable full assignment, False if none
+    exist. (yes we are using an algorithm that is exactly like backtracking!)'''
 
     # print "==>findvars([",
     # for v in remainingVars: print v.name(), " ",
@@ -101,7 +100,7 @@ def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: Tru
 
 def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
     '''findvals_ internal function with remainingVars sorted by the size of
-       their current domain'''
+    their current domain'''
     if len(remainingVars) == 0:
         return finalTestfn(assignment)
     var = remainingVars.pop()
@@ -117,17 +116,17 @@ def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
 
 class NValuesConstraint(Constraint):
     '''NValues constraint over a set of variables.  Among the variables in
-       the constraint's scope the number that have been assigned
-       values in the set 'required_values' is in the range
-       [lower_bound, upper_bound] (lower_bound <= #of variables
-       assigned 'required_value' <= upper_bound)
+    the constraint's scope the number that have been assigned
+    values in the set 'required_values' is in the range
+    [lower_bound, upper_bound] (lower_bound <= #of variables
+    assigned 'required_value' <= upper_bound)
 
-       For example, if we have 4 variables V1, V2, V3, V4, each with
-       domain [1, 2, 3, 4], then the call
-       NValuesConstraint('test_nvalues', [V1, V2, V3, V4], [1,4], 2,
-       3) will only be satisfied by assignments such that at least 2
-       the V1, V2, V3, V4 are assigned the value 1 or 4, and at most 3
-       of them have been assigned the value 1 or 4.
+    For example, if we have 4 variables V1, V2, V3, V4, each with
+    domain [1, 2, 3, 4], then the call
+    NValuesConstraint('test_nvalues', [V1, V2, V3, V4], [1,4], 2,
+    3) will only be satisfied by assignments such that at least 2
+    the V1, V2, V3, V4 are assigned the value 1 or 4, and at most 3
+    of them have been assigned the value 1 or 4.
 
     '''
 
@@ -160,11 +159,11 @@ class NValuesConstraint(Constraint):
 
     def hasSupport(self, var, val):
         '''check if var=val has an extension to an assignment of the
-           other variable in the constraint that satisfies the constraint
+        other variable in the constraint that satisfies the constraint
 
-           HINT: check the implementation of AllDiffConstraint.hasSupport
-                 a similar approach is applicable here (but of course
-                 there are other ways as well)
+        HINT: check the implementation of AllDiffConstraint.hasSupport
+                a similar approach is applicable here (but of course
+                there are other ways as well)
         '''
         if var not in self.scope():
             return True   #var=val has support on any constraint it does not participate in
@@ -172,7 +171,7 @@ class NValuesConstraint(Constraint):
         #define the test functions for findvals
         def valsOK(l):
             '''tests a list of assignments which are pairs (var,val)
-               to see if they can satisfy this sum constraint'''
+            to see if they can satisfy this sum constraint'''
             rv_count = 0
             vals = [val for (var, val) in l]
             for v in vals:
