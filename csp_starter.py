@@ -1,4 +1,124 @@
 import sys
+import argparse
+import heapq # use for MRV/LCV heuristics 
+
+class TableConstraint(Constraint):
+    '''General type of constraint that can be use to implement any type of
+        constraint. But might require a lot of space to do so.
+        A table constraint explicitly stores the set of satisfying
+        tuples of assignments.'''
+
+    def __init__(self, name, scope, satisfyingAssignments):
+        '''Init by specifying a name and a set variables the constraint is over.
+            Along with a list of satisfying assignments.
+            Each satisfying assignment is itself a list, of length equal to
+            the number of variables in the constraints scope.
+            If sa is a single satisfying assignment, e.g, sa=satisfyingAssignments[0]
+            then sa[i] is the value that will be assigned to the variable scope[i].
+
+
+            Example, say you want to specify a constraint alldiff(A,B,C,D) for
+            three variables A, B, C each with domain [1,2,3,4]
+            Then you would create this constraint using the call
+            c = TableConstraint('example', [A,B,C,D],
+                                    [[1, 2, 3, 4], [1, 2, 4, 3], [1, 3, 2, 4],
+                                    [1, 3, 4, 2], [1, 4, 2, 3], [1, 4, 3, 2],
+                                    [2, 1, 3, 4], [2, 1, 4, 3], [2, 3, 1, 4],
+                                    [2, 3, 4, 1], [2, 4, 1, 3], [2, 4, 3, 1],
+                                    [3, 1, 2, 4], [3, 1, 4, 2], [3, 2, 1, 4],
+                                    [3, 2, 4, 1], [3, 4, 1, 2], [3, 4, 2, 1],
+                                    [4, 1, 2, 3], [4, 1, 3, 2], [4, 2, 1, 3],
+                                    [4, 2, 3, 1], [4, 3, 1, 2], [4, 3, 2, 1]])
+            as these are the only assignments to A,B,C respectively that
+            satisfy alldiff(A,B,C,D) - all possible combinations possible that
+            satisfy the constraint
+        '''
+
+        Constraint.__init__(self, name, scope)
+        self._name = "TableCnstr_" + name
+        self.satAssignments = satisfyingAssignments
+
+    def check(self):
+        '''check if current variable assignments are in the satisfying set'''
+        assignments = []
+        for v in self.scope(): # scope is the list of all variables the constraint affects
+            if v.isAssigned(): # if the variable has been assigned a value
+                assignments.append(v.getValue()) # add the value to the list
+            else:
+                return True
+        return assignments in self.satAssignments # return list of whichever assignments are valid (listed in satisfyingAssignments)
+
+    def hasSupport(self, var,val):
+        '''check if var=val has an extension to an assignment of all variables in
+        constraint's scope that satisfies the constraint. Important only to
+        examine values in the variable's current domain as possible extensions. 
+        
+        In other words: TODO'''
+        if var not in self.scope():
+            return True   #var=val has support on any constraint it does not participate in
+        vindex = self.scope().index(var) # get the index of the variable in the scope
+        found = False
+        for assignment in self.satAssignments: # for each assignment in the list of satisfying assignments
+            if assignment[vindex] != val: #if the assignment doesn't assign var=val; check every other variable except the one you assigned
+                continue   # this assignment can't work it bc doesn't make var=val; skip this assignment configuration
+            found = True   #Otherwise it has potential (it's in the satisfied list for the one constraint). Assume found until shown otherwise
+            for i, v in enumerate(self.scope()): # for each variable in the scope other than the one assigned
+                if i != vindex and not v.inCurDomain(assignment[i]): # if it's not the variable we are checking and it's not in the variable's current domain
+                    found = False  # the assignment doesn't work; assigned a value that's not in v's domain for a variable in the scope
+                    break # move on to the next satisfying assignment/potential solution
+            if found: # if found still true the assigment worked. We can stop
+                break
+        return found  # either way found has the right truth value; returns True if this assignment works for this one constraint 
+
+def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
+    '''Helper function for finding an assignment to the variables of a constraint
+    that together with var=val satisfy the constraint. That is, this
+    function looks for a supporing tuple.
+
+    findvals uses recursion to build up a complete assignment, one value
+    from every variable's current domain, along with var=val.
+    It tries all ways of constructing such an assignment (using recursive DFS).
+
+    If partialTestfn is supplied, it will use this function to test
+    all partial assignments---if the function returns False
+    it will terminate trying to grow that assignment.
+
+    It will test all full assignments to "allVars" using finalTestfn
+    returning once it finds a full assignment that passes this test.
+
+    returns True if it finds a suitable full assignment, False if none
+    exist. (yes we are using an algorithm that is exactly like backtracking!)'''
+
+    '''finalTestfn returns True if the assignment is a solution to the constraint.
+    That's the function where we implement the constraint. partialTestfn 
+    returns True if the assignment is a partial solution to the constraint. It 
+    works by 
+    '''
+
+    # print "==>findvars([",
+    # for v in remainingVars: print v.name(), " ",
+    # print "], [",
+    # for x,y in assignment: print "({}={}) ".format(x.name(),y),
+    # print ""
+
+    #sort the variables call the internal version with the variables sorted
+    remainingVars.sort(reverse=True, key=lambda v: v.curDomainSize())
+    return findvals_(remainingVars, assignment, finalTestfn, partialTestfn)
+
+def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
+    '''findvals_ internal function with remainingVars sorted by the size of
+    their current domain'''
+    if len(remainingVars) == 0:
+        return finalTestfn(assignment)
+    var = remainingVars.pop()
+    for val in var.curDomain():
+        assignment.append((var, val))
+        if partialTestfn(assignment):
+            if findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
+                return True
+        assignment.pop()   #(var,val) didn't work since we didn't do the return
+    remainingVars.append(var)
+    return False
 
 class State:
     '''Class for defining a state. '''
@@ -110,7 +230,7 @@ class Variable:
         self.setValue(None)
 
     def isAssigned(self):
-        return self.getValue() != None
+        return self.getValue() != None # True if the value has been assigned or False if None
 
     def name(self):
         return self._name
@@ -293,51 +413,6 @@ class NValuesConstraint(Constraint): #TODO modify starter code
         x = findvals(varsToAssign, [(var, val)], valsOK, valsOK)
         return x
 
-def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
-    '''Helper function for finding an assignment to the variables of a constraint
-    that together with var=val satisfy the constraint. That is, this
-    function looks for a supporing tuple.
-
-    findvals uses recursion to build up a complete assignment, one value
-    from every variable's current domain, along with var=val.
-
-    It tries all ways of constructing such an assignment (using
-    a recursive depth-first search).
-
-    If partialTestfn is supplied, it will use this function to test
-    all partial assignments---if the function returns False
-    it will terminate trying to grow that assignment.
-
-    It will test all full assignments to "allVars" using finalTestfn
-    returning once it finds a full assignment that passes this test.
-
-    returns True if it finds a suitable full assignment, False if none
-    exist. (yes we are using an algorithm that is exactly like backtracking!)'''
-
-    # print "==>findvars([",
-    # for v in remainingVars: print v.name(), " ",
-    # print "], [",
-    # for x,y in assignment: print "({}={}) ".format(x.name(),y),
-    # print ""
-
-    #sort the variables call the internal version with the variables sorted
-    remainingVars.sort(reverse=True, key=lambda v: v.curDomainSize())
-    return findvals_(remainingVars, assignment, finalTestfn, partialTestfn)
-
-def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
-    '''findvals_ internal function with remainingVars sorted by the size of
-    their current domain'''
-    if len(remainingVars) == 0:
-        return finalTestfn(assignment)
-    var = remainingVars.pop()
-    for val in var.curDomain():
-        assignment.append((var, val))
-        if partialTestfn(assignment):
-            if findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
-                return True
-        assignment.pop()   #(var,val) didn't work since we didn't do the return
-    remainingVars.append(var)
-    return False
 
 #object for holding a constraint problem
 class CSP:
