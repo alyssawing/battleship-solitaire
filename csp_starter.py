@@ -9,6 +9,8 @@ class State:
         self.row_constraints = None
         self.col_constraints = None
         self.ship_constraints = None
+        self.variables = [] # list of variables (cell-based_)
+        self.varn = {} # dictionary of variables; key = str(i*dim+j), value = Variable class item
 
     def display(self):
         for i in self.board:
@@ -22,16 +24,38 @@ class State:
         lines = f.readlines()
         
         # the first 3 lines are not in the board:
-        self.row_constraints = lines[0].split()
-        self.col_constraints = lines[1].split() 
-        self.ship_constraints = lines[2].split()
+        self.row_constraints = [int(x) for x in lines[0].strip()] # list of ints
+        self.col_constraints = [int(x) for x in lines[1].strip()]
+        self.ship_constraints = [int(x) for x in lines[2].strip()]
+
+        # dim is the number of rows or cols:
+        self.dim = len(self.row_constraints)
 
         # the rest of the lines are in the board:
         for l in lines[3:]:
             self.board.append([str(x) for x in l.rstrip()])
-        # board = [[str(x) for x in l.rstrip()] for l in lines]
 
         f.close()
+    
+    def init_variables(self):
+        '''Initialize the variables of the problem; each cell on the board is 
+        a variable.'''
+
+        # for every (i,j) cell on the board, create a variable:
+        for i in range(self.dim):
+            for j in range(self.dim):
+                v = None
+                if state.board[i][j] != '0': # if has been assigned
+                    # create a new variable:
+                    # v = Variable("v_{}_{}".format(i,j), [0,1])
+                    v = Variable(str((i*self.dim+j)), [self.board[i][j]])
+                else:
+                    # create a new variable:
+                    v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','v','M']) # variable with full domain 
+                self.variables.append(v)
+                self.varn[str((i*self.dim+j))] = v
+                # add the variable to the board:
+                # self.board[i][j] = v #TODO - is this line necessary??
 
 class Variable:
     '''Class for defining CSP variables.
@@ -146,8 +170,6 @@ class Variable:
                 var.restoreVal(val)
             del Variable.undoDict[dkey]
 
-
-
 #implement various types of constraints
 class Constraint:
     '''Base class for defining constraints. Each constraint can check if
@@ -201,11 +223,126 @@ class Constraint:
         print("Cons: {} Vars = {}".format(
             self.name(), [v.name() for v in self.scope()]))
 
+class NValuesConstraint(Constraint): #TODO modify starter code 
+    '''NValues constraint over a set of variables.  Among the variables in
+    the constraint's scope the number that have been assigned
+    values in the set 'required_values' is in the range
+    [lower_bound, upper_bound] (lower_bound <= #of variables
+    assigned 'required_value' <= upper_bound)
+
+    For example, if we have 4 variables V1, V2, V3, V4, each with
+    domain [1, 2, 3, 4], then the call
+    NValuesConstraint('test_nvalues', [V1, V2, V3, V4], [1,4], 2,
+    3) will only be satisfied by assignments such that at least 2
+    the V1, V2, V3, V4 are assigned the value 1 or 4, and at most 3
+    of them have been assigned the value 1 or 4.
+
+    '''
+
+    def __init__(self, name, scope, required_values, lower_bound, upper_bound):
+        Constraint.__init__(self,name, scope)
+        self._name = "NValues_" + name
+        self._required = required_values
+        self._lb = lower_bound
+        self._ub = upper_bound
+
+    def check(self):
+        assignments = []
+        for v in self.scope():
+            if v.isAssigned():
+                assignments.append(v.getValue())
+            else:
+                return True
+        rv_count = 0
+
+        #print "Checking {} with assignments = {}".format(self.name(), assignments)
+
+        for v in assignments:
+            if v in self._required:
+                rv_count += 1
+
+        #print "rv_count = {} test = {}".format(rv_count, self._lb <= rv_count and self._ub >= rv_count)
+
+        return self._lb <= rv_count and self._ub >= rv_count
+
+    def hasSupport(self, var, val):
+        '''check if var=val has an extension to an assignment of the
+        other variable in the constraint that satisfies the constraint
+
+        HINT: check the implementation of AllDiffConstraint.hasSupport
+                a similar approach is applicable here (but of course
+                there are other ways as well)
+        '''
+        if var not in self.scope():
+            return True   #var=val has support on any constraint it does not participate in
+
+        #define the test functions for findvals
+        def valsOK(l):
+            '''tests a list of assignments which are pairs (var,val)
+            to see if they can satisfy this sum constraint'''
+            rv_count = 0
+            vals = [val for (var, val) in l]
+            for v in vals:
+                if v in self._required:
+                    rv_count += 1
+            least = rv_count + self.arity() - len(vals)
+            most =  rv_count
+            return self._lb <= least and self._ub >= most
+        varsToAssign = self.scope()
+        varsToAssign.remove(var)
+        x = findvals(varsToAssign, [(var, val)], valsOK, valsOK)
+        return x
+
+def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
+    '''Helper function for finding an assignment to the variables of a constraint
+    that together with var=val satisfy the constraint. That is, this
+    function looks for a supporing tuple.
+
+    findvals uses recursion to build up a complete assignment, one value
+    from every variable's current domain, along with var=val.
+
+    It tries all ways of constructing such an assignment (using
+    a recursive depth-first search).
+
+    If partialTestfn is supplied, it will use this function to test
+    all partial assignments---if the function returns False
+    it will terminate trying to grow that assignment.
+
+    It will test all full assignments to "allVars" using finalTestfn
+    returning once it finds a full assignment that passes this test.
+
+    returns True if it finds a suitable full assignment, False if none
+    exist. (yes we are using an algorithm that is exactly like backtracking!)'''
+
+    # print "==>findvars([",
+    # for v in remainingVars: print v.name(), " ",
+    # print "], [",
+    # for x,y in assignment: print "({}={}) ".format(x.name(),y),
+    # print ""
+
+    #sort the variables call the internal version with the variables sorted
+    remainingVars.sort(reverse=True, key=lambda v: v.curDomainSize())
+    return findvals_(remainingVars, assignment, finalTestfn, partialTestfn)
+
+def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
+    '''findvals_ internal function with remainingVars sorted by the size of
+    their current domain'''
+    if len(remainingVars) == 0:
+        return finalTestfn(assignment)
+    var = remainingVars.pop()
+    for val in var.curDomain():
+        assignment.append((var, val))
+        if partialTestfn(assignment):
+            if findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
+                return True
+        assignment.pop()   #(var,val) didn't work since we didn't do the return
+    remainingVars.append(var)
+    return False
 
 #object for holding a constraint problem
 class CSP:
     '''CSP class groups together a set of variables and a set of
-    constraints to form a CSP problem. Provides a usesful place
+    constraints to form a CSP problem. Provides a useful place
     to put some other functions that depend on which variables
     and constraints are active'''
 
@@ -294,10 +431,9 @@ class CSP:
     
     def __str__(self):
         return "CSP {}".format(self.name())
-    
 
 def select_unassigned_variable(csp):
-    '''TODO'''
+    '''TODO. '''
     # return csp.variables()[0]
     # return min(csp.variables(), key=lambda var: len(var.curDomain()))
     pass
@@ -324,7 +460,7 @@ def backtrack(assignment, csp):
     for value in order_domain_values(var, assignment, csp):
         if is_consistent(var, value, assignment, csp):
             assignment[var] = value
-            # inferences = inference(var, value, assignment, csp)
+            # inferences = inference(var, value, assignment, csp) #TODO random suggested code
             # if inferences != False:
             #     assignment.update(inferences)
             #     result = backtrack(assignment, csp)
@@ -345,7 +481,10 @@ if __name__ == '__main__':
     state = State()
     state.read_from_file(filename)
     state.display()
+    state.init_variables() # initialize variables
+
     print("row constraints:", state.row_constraints)
     print("col constraints:", state.col_constraints)
     print("ship constraints:", state.ship_constraints)
+    print("dimensions: ", state.dim)
 

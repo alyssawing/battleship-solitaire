@@ -67,7 +67,7 @@ class TableConstraint(Constraint):
                 break
         return found     #either way found has the right truth value
 
-def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
+def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True): # moved to main file
     '''Helper function for finding an assignment to the variables of a constraint
     that together with var=val satisfy the constraint. That is, this
     function looks for a supporing tuple.
@@ -98,7 +98,7 @@ def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: Tru
     remainingVars.sort(reverse=True, key=lambda v: v.curDomainSize())
     return findvals_(remainingVars, assignment, finalTestfn, partialTestfn)
 
-def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
+def findvals_(remainingVars, assignment, finalTestfn, partialTestfn): # moved to main file 
     '''findvals_ internal function with remainingVars sorted by the size of
     their current domain'''
     if len(remainingVars) == 0:
@@ -114,7 +114,7 @@ def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
     return False
 
 
-class NValuesConstraint(Constraint):
+class NValuesConstraint(Constraint): # moved to main file
     '''NValues constraint over a set of variables.  Among the variables in
     the constraint's scope the number that have been assigned
     values in the set 'required_values' is in the range
@@ -153,7 +153,6 @@ class NValuesConstraint(Constraint):
                 rv_count += 1
 
         #print "rv_count = {} test = {}".format(rv_count, self._lb <= rv_count and self._ub >= rv_count)
-
 
         return self._lb <= rv_count and self._ub >= rv_count
 
