@@ -655,13 +655,13 @@ def backtrack(assignment, csp, state):
 
     # if assignment is complete, return assignment TODO - check what "complete" is and later implement forward checking 
     if len(assignment) == len(csp.variables()):
-        return assignment
+        # return assignment
         # solutions.append(assignment)
         # now check if it satisfies the ship constraints: 
-        # if check_ship_constraints(assignment, state) == True:
-        #     return assignment
-        # else:
-        #     return None
+        if check_ship_constraints(assignment, state) == True:
+            return assignment
+        else:
+            return None
         #return assignment
     
     var = select_unassigned_variable(csp)
@@ -700,121 +700,58 @@ def backtrack(assignment, csp, state):
     return None # failure; no solution
 
 def check_ship_constraints(assignment, state):
-    '''Given the ship constraints as a list (state.ship_constraints), check if 
-    the complete assignment satisfies the constraints and return True if it is
-    the case, and False otherwise.
-    - assignment is a dictionary of the form {var: value} with the new changes
-    that must be implemented on a copy of the board
-    - state is the state of the board, with the ship constraints
-    '''
+    '''Given check if a full assignment (of a board) satisfies the original 
+    state's ship constraints.'''
 
-    # make a copy of the board, and implement the changes in assignment on it
-    # TODO: fix and uncomment or delete this 
-    # new_board = implement_assignment(assignment, state)
-    # print("new_board: ", new_board)
-    # new_board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
-
-    # check that the correct number of each type of ship is present:
+    # the correct number of each type of ship is present:
     submarines = state.ship_constraints[0] # 'S'
     destroyers = state.ship_constraints[1] # 1x2
     cruisers = state.ship_constraints[2] # 1x3
     battleships = state.ship_constraints[3] # 1x4
 
-    # iterate through the board and reverse count each type of ship:
-    # for i in range(len(new_board)):
-    #     for j in range(len(new_board[i])):
-    #         if new_board[i][j] == 'S':
-    #             submarines -= 1
-    #         elif new_board[i][j] == 'D':
-    #             destroyers -= 1
-    #         elif new_board[i][j] == 'C':
-    #             cruisers -= 1
-    #         elif new_board[i][j] == 'B':
-    #             battleships -= 1
-    
-    # iterate through every row and look for horizontal ships or submarines:
-    # for i in range(len(new_board)):
-    #     for j in range(len(new_board[i])):
-    #         if new_board[i][j] == 'S':
-    #             submarines -= 1
-    #         elif new_board[i][j] == 'M':
+    # implement the assignment changes to the board:
+    new_board = implement_assignment(assignment, state)
+    # new_board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
 
-    # iterate through rows, looking for submarines and horizontal ships:
-    for i in range(len(new_board)):
-        for j in range(len(new_board[i])):
-            if new_board[i][j] == 'S':
+    rows_list = new_board # the board is a list of rows
+    cols_list = list(zip(*rows_list)) # transpose the board to have a list of columns
+
+    # iterate through rows list, looking for 'S', '<>', '<M>', '<MM>'
+    for row in rows_list:
+        for i in range(len(row)):
+            if row[i] == 'S':
                 submarines -= 1
-            elif new_board[i][j] == '<': 
-                if new_board[i][j+1] == '>': #<>
-                    destroyers -= 1 
-            elif new_board[i][j] == 'M':
-                # check the sides as long as not on the edge of the board
-                if j != 0 and j != len(new_board[i])-1:
-                    if new_board[i][j-1] == '<' and new_board[i][j+1] == '>': # <M>
-                        cruisers -= 1
+            if row[i] == '<' and i != len(row)-1: # if it's the last element, it can't be a ship
+                if row[i+1] == '>':
+                    destroyers -= 1 # found a 1x2
+                elif row[i+1] == 'M' and i != len(row)-2: # if it's the second last element, it can't be a ship
+                    if row[i+2] == '>':
+                        cruisers -= 1 # found a 1x3
+                    elif row[i+2] == 'M' and i != len(row)-3: # if it's the third last element, it can't be a ship
+                        if row[i+3] == '>':
+                            battleships -= 1 # found a 1x4
 
-                        #TODO: implement checks for 1x4 horizontal ships
-                    # elif new_board[i][j-1] == 'M' or new_board[i][j+1]=='M': # another M to the left found -> <MM>
-                    #     battleships -= 1
+    # iterate through cols list, looking for '^v', '^Mv', '^MMv'
+    for col in cols_list:
+        for i in range(len(col)):
+            if col[i] == '^' and i != len(col)-1:
+                if col[i+1] == 'v':
+                    destroyers -= 1 # found a 2x1
+                elif col[i+1] == 'M' and i != len(col)-2:
+                    if col[i+2] == 'v':
+                        cruisers -= 1 # found a 3x1
+                    elif col[i+2] == 'M' and i != len(col)-3:
+                        if col[i+3] == 'v':
+                            battleships -= 1 # found a 4x1
 
-                # if new_board[i][j-1] == 'S' or new_board[i][j+1] == 'S':
-                #     submarines -= 1
-                # elif new_board[i][j-1] == 'M' or new_board[i][j+1] == 'M':
-                #     destroyers -= 1
-                # elif new_board[i][j-1] == 'C' or new_board[i][j+1] == 'C':
-                #     cruisers -= 1
-                # elif new_board[i][j-1] == 'B' or new_board[i][j+1] == 'B':
-                #     battleships -= 1
-
-                #TODO TODO: actually, use the Nvalues class to check the ship constraint 
-
-    #TODO: iteraate through columns (make them lists or something), looking for vertical ships (not submaarines to avoid double count)
-
-    # if the number of ships of each type is not correct, return False
-    if submarines != 0 or destroyers != 0 or cruisers != 0 or battleships != 0:
-        return False
-    else:
+    if submarines == 0 and destroyers == 0 and cruisers == 0 and battleships == 0:
         return True
-    
-def check_ship_constraints2(new_state):
-    '''Given the ship constraints as a list (state.ship_constraints), check if 
-    the complete assignment satisfies the constraints and return True if it is
-    the case, and False otherwise.
-    - assignment is a dictionary of the form {var: value} with the new changes
-    that must be implemented on a copy of the board
-    - state is the state of the board, with the ship constraints
-    '''
-
-    # make a copy of the board, and implement the changes in assignment on it
-    # new_state = implement_assignment2(assignment, state)
-
-    # check that the correct number of each type of ship is present:
-    submarines = state.ship_constraints[0]
-    destroyers = state.ship_constraints[1]
-    cruisers = state.ship_constraints[2]
-    battleships = state.ship_constraints[3]
-
-    # iterate through the board and reverse count each type of ship:
-    for i in range(len(new_state.board)):
-        for j in range(len(new_state.board[i])):
-            if new_state.board[i][j] == 'S':
-                submarines -= 1
-            elif new_state.board[i][j] == 'D':
-                destroyers -= 1
-            elif new_state.board[i][j] == 'C':
-                cruisers -= 1
-            elif new_state.board[i][j] == 'B':
-                battleships -= 1
-    
-    # if the number of ships of each type is not correct, return False
-    if submarines != 0 or destroyers != 0 or cruisers != 0 or battleships != 0:
-        return False
     else:
-        return True
+        return False # does not satisfy the ship constraints
 
 def implement_assignment(assignment, state):
-    '''Given an assignment, implement the changes on a copy of the board and 
-    return that state. It can be later displayed with state.display()'''
+    '''Given an assignment and initial state, implement the changes on a copy of 
+    the board and return that state.'''
     # make a board (list of lists) with the same dimensions as the original board:
     new_board = [['0' for j in range(state.dim)] for i in range(state.dim)]
 
@@ -824,20 +761,6 @@ def implement_assignment(assignment, state):
     for var in assignment:
         new_board[var.y][var.x] = assignment[var]
     return new_board
-
-def implement_assignment2(assignment, state):
-    '''Given an assignment, implement the changes on a copy of the board and 
-    return that state. It can be later displayed with state.display()'''
-    
-    if len(assignment) == 0:
-        return state
-    
-    # make a copy of the original state using deepcopy:
-    new_state = copy.deepcopy(state)
-
-    for var in assignment:
-        new_state.board[var.y][var.x] = assignment[var]
-    return new_state
 
 def findvals(remainingVars, assignment, finalTestfn, partialTestfn=lambda x: True):
     '''Helper function for finding an assignment to the variables of a constraint
@@ -942,7 +865,7 @@ if __name__ == '__main__':
     end = time.time()
     print("\nTime taken: ", end-start)
 
-    # # print("\n checking ship constraints: ", check_ship_constraints(assignment, state))
+    # print("\n checking ship constraints: ", check_ship_constraints(assignment, state))
     print("\nSolution:")
     sol_board = implement_assignment(assignment, state)
     # print("sol board: ", sol_board)
