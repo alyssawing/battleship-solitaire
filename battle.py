@@ -1,6 +1,60 @@
 import sys
 import argparse
 import heapq # use for MRV/LCV heuristics 
+import time
+
+#implement various types of constraints
+class Constraint:
+    '''Base class for defining constraints. Each constraint can check if
+    it has been satisfied, so each type of constraint must be a
+    different class. For example a constraint of notEquals(V1,V2)
+    must be a different class from a constraint of
+    greaterThan(V1,V2), as they must implement different checks of
+    satisfaction.
+
+    However one can define a class of general table constraints, as
+    below, that can capture many different constraints.
+
+    On initialization the constraint's name can be given as well as
+    the constraint's scope. IMPORTANT, the scope is ordered! E.g.,
+    the constraint greaterThan(V1,V2) is not the same as the
+    contraint greaterThan(V2,V1).
+    '''
+    def __init__(self, name, scope):
+        '''create a constraint object, specify the constraint name (a
+        string) and its scope (an ORDERED list of variable
+        objects).'''
+        self._scope = list(scope)
+        self._name = "baseClass_" + name  #override in subconstraint types!
+
+    def scope(self):
+        return list(self._scope)
+
+    def arity(self):
+        return len(self._scope)
+
+    def numUnassigned(self):
+        i = 0
+        for var in self._scope:
+            if not var.isAssigned():
+                i += 1
+        return i
+
+    def unAssignedVars(self):
+        return [var for var in self.scope() if not var.isAssigned()]
+
+    # def check(self):
+    #     util.raiseNotDefined()
+
+    def name(self):
+        return self._name
+
+    def __str__(self):
+        return "Cnstr_{}({})".format(self.name(), map(lambda var: var.name(), self.scope()))
+
+    def printConstraint(self):
+        print("Cons: {} Vars = {}".format(
+            self.name(), [v.name() for v in self.scope()]))
 
 class TableConstraint(Constraint):
     '''General type of constraint that can be use to implement any type of
@@ -118,28 +172,28 @@ class State:
                 if state.board[i][j] != '0': # if has been assigned
                     # create a new variable:
                     # v = Variable("v_{}_{}".format(i,j), [0,1])
-                    v = Variable(str((i*self.dim+j)), [self.board[i][j]])
+                    v = Variable(str((i*self.dim+j)), [self.board[i][j]], j,i)
                     v._value = self.board[i][j]
                 else:
                     # create a new variable:
                     if i == 0 and j == 0: # top left corner
-                        v = Variable(str((i*self.dim+j)), ['S','.','<','^']) # can't have 'v' or '>' or 'M' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','^'],j,i) # can't have 'v' or '>' or 'M' piece
                     elif i == self.dim-1 and j == self.dim-1: # bottom right corner
-                        v = Variable(str((i*self.dim+j)), ['S','.','>','v']) # can't have '^' or '<' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','v'],j,i) # can't have '^' or '<' piece
                     elif i == 0 and j == self.dim-1: # top right corner
-                        v = Variable(str((i*self.dim+j)), ['S','.','>','^']) # can't have 'v' or '<' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','^'],j,i) # can't have 'v' or '<' piece
                     elif i == self.dim-1 and j == 0: # bottom left corner
-                        v = Variable(str((i*self.dim+j)), ['S','.','<','v']) # can't have '^' or '>' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','v'],j,i) # can't have '^' or '>' piece
                     elif i == 0: # top edge
-                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','M']) # can't have 'v' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','M'],j,i) # can't have 'v' piece
                     elif i == self.dim-1: # bottom edge
-                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','v','M']) # can't have '^' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','v','M'],j,i) # can't have '^' piece
                     elif j == self.dim-1: # right edge
-                        v = Variable(str((i*self.dim+j)), ['S','.','>','^','v','M']) # can't have '<' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','^','v','M'],j,i) # can't have '<' piece
                     elif j == 0: # left edge
-                        v = Variable(str((i*self.dim+j)), ['S','.','<','^','v','M']) # can't have '>' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','^','v','M'],j,i) # can't have '>' piece
                     else:
-                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','v','M']) # variable with full domain 
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','v','M'],j,i) # variable with full domain 
                 self.variables.append(v) # add the variable to the list of variables
                 self.varn[str((i*self.dim+j))] = v # add the variable to the dictionary of variables
                 # add the variable to the board:
@@ -161,7 +215,7 @@ class Variable:
 
     undoDict = dict()             # stores pruned values indexed by a TODO ???
                                         # (variable,value) reason pair
-    def __init__(self, name, domain):
+    def __init__(self, name, domain, x, y):
         '''Create a variable object, specifying its name (a
         string) and domain of values.
         '''
@@ -170,6 +224,8 @@ class Variable:
         self._curdom = list(domain)      # using list
         self.curdom_size = len(list(domain)) # the size of the current domain size
         self._value = None
+        self.x = x
+        self.y = y
 
     def __str__(self):
         return "Variable {}".format(self._name)
@@ -259,59 +315,6 @@ class Variable:
                 var.restoreVal(val)
             del Variable.undoDict[dkey]
 
-#implement various types of constraints
-class Constraint:
-    '''Base class for defining constraints. Each constraint can check if
-    it has been satisfied, so each type of constraint must be a
-    different class. For example a constraint of notEquals(V1,V2)
-    must be a different class from a constraint of
-    greaterThan(V1,V2), as they must implement different checks of
-    satisfaction.
-
-    However one can define a class of general table constraints, as
-    below, that can capture many different constraints.
-
-    On initialization the constraint's name can be given as well as
-    the constraint's scope. IMPORTANT, the scope is ordered! E.g.,
-    the constraint greaterThan(V1,V2) is not the same as the
-    contraint greaterThan(V2,V1).
-    '''
-    def __init__(self, name, scope):
-        '''create a constraint object, specify the constraint name (a
-        string) and its scope (an ORDERED list of variable
-        objects).'''
-        self._scope = list(scope)
-        self._name = "baseClass_" + name  #override in subconstraint types!
-
-    def scope(self):
-        return list(self._scope)
-
-    def arity(self):
-        return len(self._scope)
-
-    def numUnassigned(self):
-        i = 0
-        for var in self._scope:
-            if not var.isAssigned():
-                i += 1
-        return i
-
-    def unAssignedVars(self):
-        return [var for var in self.scope() if not var.isAssigned()]
-
-    # def check(self):
-    #     util.raiseNotDefined()
-
-    def name(self):
-        return self._name
-
-    def __str__(self):
-        return "Cnstr_{}({})".format(self.name(), map(lambda var: var.name(), self.scope()))
-
-    def printConstraint(self):
-        print("Cons: {} Vars = {}".format(
-            self.name(), [v.name() for v in self.scope()]))
-
 class NValuesConstraint(Constraint): #TODO modify starter code 
     '''NValues constraint over a set of variables.  Among the variables in
     the constraint's scope the number that have been assigned
@@ -398,7 +401,7 @@ class row_constraints(Constraint):
 
         assignments = [] # list of values for the row 
         ship_parts = 0 # initialize number of ship parts in the row 
-        num =  # number of ship parts in the row
+        # num =  # number of ship parts in the row
 
         # for v in self.scope()[k]: # loop through variables in row k
         #     if v.isAssigned():
@@ -414,36 +417,36 @@ class row_constraints(Constraint):
         # for ass in assignments:
         # # return 
 
-        def hasSupport(self, var, val):
-            '''Checks if the variables other than the one assigned (val) are 
-            a valid combination overall with this one constraint.
-            - var is the variable that is assigned/fixed: format is Variable type
-            - val is the value that is assigned to var: format is a string
-            '''
-            if var not in self.scope():
-                return True # var=val has support on any constraint it does not participate in
-            
-            def check_rows(l):
-                ''' TODO tests a list of assignments which are pairs (var,val)
-                to see if they can satisfy the all diff. l is a list of tuples
-                for the variables of one row, and k is the constraint number '''
-                ship_parts = 0
-                for i in range(len(l)):
-                    if l[i][1] == 'S' or l[i] == 'M' or l[i] == '<'\
-                        or l[i] == '>' or l[i] == '^' or l[i] == 'v':
-                        ship_parts += 1
-                return ship_parts <= self.row_constraint # True if valid (num ship parts <= row constraint)
-                # vals = [val for (var, val) in l]
-                # return len(set(vals)) == len(vals)
+    def hasSupport(self, var, val):
+        '''Checks if the variables other than the one assigned (val) are 
+        a valid combination overall with this one constraint.
+        - var is the variable that is assigned/fixed: format is Variable type
+        - val is the value that is assigned to var: format is a string
+        '''
+        if var not in self.scope():
+            return True # var=val has support on any constraint it does not participate in
+        
+        def check_rows(l):
+            ''' TODO tests a list of assignments which are pairs (var,val)
+            to see if they can satisfy the all diff. l is a list of tuples
+            for the variables of one row, and k is the constraint number '''
+            ship_parts = 0
+            for i in range(len(l)):
+                if l[i][1] == 'S' or l[i] == 'M' or l[i] == '<'\
+                    or l[i] == '>' or l[i] == '^' or l[i] == 'v':
+                    ship_parts += 1
+            return ship_parts <= self.row_constraint # True if valid (num ship parts <= row constraint)
+            # vals = [val for (var, val) in l]
+            # return len(set(vals)) == len(vals)
 
-            varsToAssign = self.scope() # all variables in row k
-            varsToAssign.remove(var) # remove the already assigned variable
+        varsToAssign = self.scope() # all variables in row k
+        varsToAssign.remove(var) # remove the already assigned variable
 
-            # findvals takes the variable with the largest domain and tries to assign it
-            # assigns every value in its domain and recursively checks if it satisfiess
-            # the constraint
-            x = findvals(varsToAssign, [(var, val)], check_rows, check_rows) 
-            return x # returns True if it finds a valid combination
+        # findvals takes the variable with the largest domain and tries to assign it
+        # assigns every value in its domain and recursively checks if it satisfiess
+        # the constraint
+        x = findvals(varsToAssign, [(var, val)], check_rows, check_rows) 
+        return x # returns True if it finds a valid combination
 
 class col_constraints(Constraint):
     '''Ensures that the number of ship parts in a column correspond to 
@@ -461,7 +464,7 @@ class col_constraints(Constraint):
 
         assignments = [] # list of values for the col
         ship_parts = 0 # initialize number of ship parts in the col
-        num =  # number of ship parts in the col
+        # num =  # number of ship parts in the col
 
         # for v in self.scope()[k]: # loop through variables in col k
         #     if v.isAssigned():
@@ -477,35 +480,35 @@ class col_constraints(Constraint):
         # for ass in assignments:
         # # return 
 
-        def hasSupport(self, var, val):
-            ''' TODO Checks if the variables other than the one assigned (val) are 
-            a valid combination overall with this one constraint.
-            - var is the variable that is assigned/fixed
-            - val is the value that is assigned to var
-            '''
-            if var not in self.scope():
-                return True # var=val has support on any constraint it does not participate in
-            
-            def check_cols(l):
-                '''tests a list of assignments which are pairs (var,val)
-                to see if they can satisfy the all diff'''
-                ship_parts = 0
-                for i in range(len(l)):
-                    if l[i][1] == 'S' or l[i] == 'M' or l[i] == '<'\
-                        or l[i] == '>' or l[i] == '^' or l[i] == 'v':
-                        ship_parts += 1
-                return ship_parts <= self.col_constraint # True if valid (num ship parts <= col constraint)
-                # vals = [val for (var, val) in l]
-                # return len(set(vals)) == len(vals)
+    def hasSupport(self, var, val):
+        ''' TODO Checks if the variables other than the one assigned (val) are 
+        a valid combination overall with this one constraint.
+        - var is the variable that is assigned/fixed
+        - val is the value that is assigned to var
+        '''
+        if var not in self.scope():
+            return True # var=val has support on any constraint it does not participate in
+        
+        def check_cols(l):
+            '''tests a list of assignments which are pairs (var,val)
+            to see if they can satisfy the all diff'''
+            ship_parts = 0
+            for i in range(len(l)):
+                if l[i][1] == 'S' or l[i] == 'M' or l[i] == '<'\
+                    or l[i] == '>' or l[i] == '^' or l[i] == 'v':
+                    ship_parts += 1
+            return ship_parts <= self.col_constraint # True if valid (num ship parts <= col constraint)
+            # vals = [val for (var, val) in l]
+            # return len(set(vals)) == len(vals)
 
-            varsToAssign = self.scope()
-            varsToAssign.remove(var)
+        varsToAssign = self.scope()
+        varsToAssign.remove(var)
 
-            # findvals takes the variable with the largest domain and tries to assign it
-            # assigns every value in its domain and recursively checks if it satisfiess
-            # the constraint
-            x = findvals(varsToAssign, [(var, val)], check_cols, check_cols) 
-            return x
+        # findvals takes the variable with the largest domain and tries to assign it
+        # assigns every value in its domain and recursively checks if it satisfiess
+        # the constraint
+        x = findvals(varsToAssign, [(var, val)], check_cols, check_cols) 
+        return x
 
 #object for holding a constraint problem
 class CSP:
@@ -603,11 +606,24 @@ class CSP:
 def select_unassigned_variable(csp):
     '''Select the next unassigned variable without a value. Pick variables based
     on the smallest domain (Most Constrained Variable Heuristic). 
+
     - csp.variables is a list of all variables in the CSP
+
+    The function returns the best variable (the unassigned variable with the
+    smallest domain) or None if there is no unassigned variable left.
     '''
-    # select the variable with the smallest current domain: TODO - how to verify that it hasn't been assigned already?? 
-    # best_var = csp.variables()[0]
-    best_var = None # initialize to None
+
+    best_var = None
+
+    # initialize the best_var with the first unasssigned variable:
+    for v in csp.variables():
+        if v.isAssigned() == False:
+            best_var = v
+            break
+    
+    # if the domain is empty (the for loop finishes), then there is no unassigned variable:
+    if best_var == None:
+        return best_var # return None if there is no unassigned variable left 
 
     for v in csp.variables():
         if v.curdom_size < best_var.curdom_size:
@@ -632,10 +648,15 @@ def backtrack(assignment, csp):
     # if assignment is complete, return assignment TODO - check what "complete" is and later implement forward checking 
     if len(assignment) == len(csp.variables()):
         return assignment
+    
     var = select_unassigned_variable(csp)
+    
+    if var == None: # if there are no unassigned variables left
+        return assignment
+
     for value in var._curdom:
         all_constraints = [] # list of what constraints are satisfied
-        for c in csp.constraintsOf(var):
+        for c in csp.constraintsOf(var): # loop through all the constraints
             if c.hasSupport(var, value) == True:
                 all_constraints.append(True)
             else:
@@ -650,12 +671,13 @@ def backtrack(assignment, csp):
             #     if result != False:
             #         return result
             # assignment.pop(var)
-            result = backtrack(assignment, csp) # look at remaining unassigned variables (recursive call
+            result = backtrack(assignment, csp) # look at remaining unassigned variables (recursive call)
             if result != None: # if result is not a failure
                 return result # if it worked, return the 
         # find bad value with variable, and remove it from the assignment dictionary bsince it doesn't satisfy a constraint
-        del assignment[var] # remove var from assignment, so it's now unassigned
-        var.unAssign() # unassign var (it's value is reset to None)
+        # print("result: ", result)
+            del assignment[var] # remove var from assignment, so it's now unassigned
+            var.unAssign() # unassign var (it's value is reset to None)
 
         # var._curdom.remove(value)
         # remove it 
@@ -733,6 +755,43 @@ if __name__ == '__main__':
 
     print("row constraints:", state.row_constraints)
     print("col constraints:", state.col_constraints)
-    print("ship constraints:", state.ship_constraints)
-    print("dimensions: ", state.dim)
+    # print("ship constraints:", state.ship_constraints)
+    print("\nnumber of submarines: ", state.ship_constraints[0])
+    print("number of destroyers (1x2): ", state.ship_constraints[1])
+    print("number of cruisers (1x3): ", state.ship_constraints[2])
+    print("number of battleships (1x4): ", state.ship_constraints[3])
 
+    print("\ndimensions: ", state.dim)
+
+    #define row and column constraints
+    conslist = [] # list containing all the constraints in format 
+
+    for i in range(state.dim):
+        rowi = []
+        coli = []
+        for j in range(state.dim):
+            rowi.append(state.varn[str(i*state.dim+j)]) # varn is the dictionary of variables
+            coli.append(state.varn[str(i+j*state.dim)])
+        conslist.append(row_constraints('row'+str(i),rowi,state.row_constraints[i]))
+        conslist.append(col_constraints('col'+str(i),coli,state.col_constraints[i]))
+
+    # create the CSP:
+    csp = CSP('Battleship', state.variables, conslist)
+
+    # run backtracking search
+    print("\n********** Running backtracking search... **********")
+    start = time.time()
+    assignment = backtrack_search(csp) # format: {var1: value1, var2: value2, ...}
+    end = time.time()
+    print("\nTime taken: ", end-start)
+
+    # take the assignment list, and modify the state object to display the solution:
+    # make a copy of the board:
+    new_state = state
+
+    for var in assignment:
+        new_state.board[var.y][var.x] = assignment[var]
+
+    # print the solution:
+    print("\nSolution:")
+    new_state.display()
