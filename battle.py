@@ -169,7 +169,7 @@ class State:
         for i in range(self.dim): # for each row
             for j in range(self.dim): # for each col
                 v = None
-                if state.board[i][j] != '0': # if has been assigned
+                if state.board[i][j] != '0': # if has been assigned (if they give initiial hints)
                     # create a new variable:
                     # v = Variable("v_{}_{}".format(i,j), [0,1])
                     v = Variable(str((i*self.dim+j)), [self.board[i][j]], j,i)
@@ -432,8 +432,8 @@ class row_constraints(Constraint):
             for the variables of one row, and k is the constraint number '''
             ship_parts = 0
             for i in range(len(l)):
-                if l[i][1] == 'S' or l[i] == 'M' or l[i] == '<'\
-                    or l[i] == '>' or l[i] == '^' or l[i] == 'v':
+                if l[i][1] == 'S' or l[i][1] == 'M' or l[i][1] == '<'\
+                    or l[i][1] == '>' or l[i][1] == '^' or l[i][1] == 'v':
                     ship_parts += 1
             return ship_parts <= self.row_constraint # True if valid (num ship parts <= row constraint)
             # vals = [val for (var, val) in l]
@@ -494,8 +494,8 @@ class col_constraints(Constraint):
             to see if they can satisfy the all diff'''
             ship_parts = 0
             for i in range(len(l)):
-                if l[i][1] == 'S' or l[i] == 'M' or l[i] == '<'\
-                    or l[i] == '>' or l[i] == '^' or l[i] == 'v':
+                if l[i][1] == 'S' or l[i][1] == 'M' or l[i][1] == '<'\
+                    or l[i][1] == '>' or l[i][1] == '^' or l[i][1] == 'v':
                     ship_parts += 1
             return ship_parts <= self.col_constraint # True if valid (num ship parts <= col constraint)
             # vals = [val for (var, val) in l]
