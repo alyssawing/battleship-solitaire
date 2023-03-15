@@ -2,7 +2,7 @@ import sys
 import argparse
 import heapq # use for MRV/LCV heuristics 
 import time
-from copy import copy, deepcopy
+from copy import deepcopy
 
 #implement various types of constraints
 class Constraint:
@@ -162,6 +162,43 @@ class State:
 
         f.close()
     
+    def precondition_state(self):
+        '''Given the inital state, precondition by using any information given.'''
+        # look through the row and col constraints to see if there are any 0's:
+        for i in range(len(self.row_constraints)):
+            if self.row_constraints[i] == 0:
+                # assign all variables in that row to '.':
+                for j in range(len(self.board[i])):
+                    self.board[i][j] = '.'
+            if self.col_constraints[i] == 0:
+                # assign all variables in that col to '.':
+                for j in range(len(self.board)):
+                    self.board[j][i] = '.'
+        
+        # if any hints given of ships, surround diagonals with water:
+        for i in range(len(self.board)):
+            for j in range(len(self.board[i])):
+                if self.board[i][j] == 'S': # submarine - surround completely with water
+                    if i > 0 and j > 0:
+                        self.board[i-1][j-1] = '.' # top left
+                    if i > 0 and j < len(self.board[i])-1:
+                        self.board[i-1][j+1] = '.' # top right
+                    if i < len(self.board)-1 and j > 0:
+                        self.board[i+1][j-1] = '.' # bottom left
+                    if i < len(self.board)-1 and j < len(self.board[i])-1:
+                        self.board[i+1][j+1] = '.' # bottom right
+                    if i > 0:
+                        self.board[i-1][j] = '.' # top
+                    if i < len(self.board)-1:
+                        self.board[i+1][j] = '.' # bottom
+                    if j > 0:
+                        self.board[i][j-1] = '.' # left
+                    if j < len(self.board[i])-1:
+                        self.board[i][j+1] = '.' # right
+                # elif self.board[i][j] == 'B': # battleship - surround with water
+
+
+
     def init_variables(self):
         '''Initialize the variables of the problem; each cell on the board is 
         a variable.'''
@@ -530,6 +567,7 @@ class CSP:
         self._name = name
         self._variables = variables
         self._constraints = constraints
+        self.solution = []
 
         #some sanity checks
         varsInCnst = set()
@@ -606,7 +644,70 @@ class CSP:
             var.setValue(val)
 
         return errs
-    
+
+    def gac_enforce(self, constraints, assignedvar, assignedval):
+        '''Establish GAC on all affected constraints.
+        - constraints is a list of constraints not known to GAC
+        - assignedvar is the variable that was just assigned a value
+        - assignedval is the value that was just assigned to assignedvar
+        '''
+        while len(constraints) > 0:
+            c = constraints.pop() # make constraint GAC
+            for var in c.scope(): # for each variable in the constraint's scope
+                for val in var._curdom: # for each value in the variable's domain
+                    if not c.hasSupport(var, val): # if the value doesn't satisfy the constraint
+                        var.pruneValue(val, assignedvar, assignedval) # remove the value from the variable's domain
+                        if var.curdom_size == 0: # if the domain is empty
+                            return "DWO" # domain wipe out
+                        for c2 in self.constraintsOf(var): # for each constraint in the CSP that involves the variable
+                            if c2 != c and not c2 in constraints:
+                                constraints.append(c2) # or use insert?
+        return "OK"
+
+    def gac(self, unassignedvars, state): # can use unAssignedVars from Constraint class
+        '''Establish GAC on all constraints involving unassigned variables.'''
+
+        if len(unassignedvars) == 0: # if complete assignment
+            # check ship constraints:
+            assigned = {}
+            for v in csp.variables():
+                if v.isAssigned() == True:
+                    assigned[v] = v.getValue()
+            # print("assigned from gac: ", assigned)
+            if check_ship_constraints(assigned, state) == True:
+                self.solution.append(deepcopy(assigned))
+                # print("returned assigned here if ship constraints good: ")
+                # #TESTING
+                # board = implement_assignment(assigned, state)
+                # print("board: ", board)
+
+                return assigned # TODO what should i be returning?
+            else:
+                return  # TODO what should i be returning? if anything?
+            # for var in unassignedvars: # variables = unassignedvars??
+            #     print(var.name(), " = ", var.getValue()) # TODO is this correct syntax for these included functions?? and what's the point of this line??
+            # allSolutions = None # TODO: flag to indicate if you want to stop after finding first sol or keep going
+            # if allSolutions: 
+            #     return # continue search to print all solutions
+            # else:
+            #     return # exit or return?? Terminate aafter one solution found
+        # print("testpoint")
+        var = unassignedvars.pop() # selecte next variable to assign
+        for val in var.curDomain():
+            var.setValue(val) # assign var = val
+            noDWO = True
+            if self.gac_enforce(self.constraintsOf(var), var, val) == "DWO": # constraintsOf() returns constraints with var in their scope
+                # only vara's domain changed-constraints with var have to be checked
+                noDWO = False
+            if noDWO:
+                self.gac(unassignedvars, state) # recursive call
+            # restore values pruned by var = val assignment:
+            #for var2 in unassignedvars: # variables = unassignedvars??
+            var.restoreValues(var, val)
+        var.unAssign() # unassign var; same as var.setValue(None)
+        unassignedvars.append(var) # put var back on the stack. use insert??
+        return
+        
     def __str__(self):
         return "CSP {}".format(self.name())
 
@@ -658,7 +759,7 @@ def backtrack_search(csp, state):
     return backtrack(assignment, csp, state)
 
 def backtrack(assignment, csp, state):
-
+    '''Try to assign values that satisfy the constraints. If it can't, backtrack and try again.'''
     # if assignment is complete, return assignment TODO - check what "complete" is and later implement forward checking 
     if len(assignment) == len(csp.variables()):
         # return assignment
@@ -703,6 +804,7 @@ def backtrack(assignment, csp, state):
         # remove it 
         # assignment.pop(var) # remove var from assignment
     return None # failure; no solution
+        
 
 def check_ship_constraints(assignment, state):
     '''Given check if a full assignment (of a board) satisfies the original 
@@ -832,6 +934,12 @@ if __name__ == '__main__':
     state = State()
     state.read_from_file(filename)
     state.display()
+
+    # precondition the board: surround any ships with water, fill any 0 rows/cols with water
+    state.precondition_state()
+    print("\npreconditioned board:")
+    state.display()
+
     state.init_variables() # initialize variables
 
     print("row constraints:", state.row_constraints)
@@ -841,7 +949,6 @@ if __name__ == '__main__':
     print("number of destroyers (1x2): ", state.ship_constraints[1])
     print("number of cruisers (1x3): ", state.ship_constraints[2])
     print("number of battleships (1x4): ", state.ship_constraints[3])
-
     print("\ndimensions: ", state.dim)
 
     # ***************** initialize row and column constraints *****************
@@ -896,18 +1003,42 @@ if __name__ == '__main__':
     # print("attempt at check board: ", check_ship_constraints({}, state))
 
     # ************************ run backtracking search ************************
-    print("\n********** Running backtracking search... **********")
+    # print("\n********** Running backtracking search... **********")
+    # start = time.time()
+    # assignment = backtrack_search(csp, state) # format: {var1: value1, var2: value2, ...}
+    # end = time.time()
+    # print("\nTime taken: ", end-start)
+
+    # print("\n checking ship constraints: ", check_ship_constraints(assignment, state))
+    # print("sol board: ", sol_board)
+
+    # ********************************* run GAC *******************************
+
+    print("\n********** Running GAC... **********")
     start = time.time()
-    assignment = backtrack_search(csp, state) # format: {var1: value1, var2: value2, ...}
+    # call gac on unassigned variables:
+    unassigned = []
+    # print("state variables: ", state.variables)
+    for var in state.variables:
+        if not var.isAssigned():
+            unassigned.append(var)
+        else:
+            var._curdom.remove(var.getValue())
+
+    print("unassigned variaables before GAC: ", unassigned)
+    assignment = csp.gac(unassigned, state)
+    assignment = csp.solution[0]
+    # print(assignment)
+    # assignment = {}
+    # for i in state.variables:
+    #     assignment[i] = i.getValue()
+    # print("assignment after GAC: ", assignment)
     end = time.time()
     print("\nTime taken: ", end-start)
 
-    # print("\n checking ship constraints: ", check_ship_constraints(assignment, state))
+    # ************************ print solution ********************************
     print("\nSolution:")
     sol_board = implement_assignment(assignment, state)
-    # print("sol board: ", sol_board)
-    
-    # display the board:
     for i in range(len(sol_board)):
         for j in range(len(sol_board[i])):
             print(sol_board[i][j], end='')
