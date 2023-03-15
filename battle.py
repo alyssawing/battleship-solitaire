@@ -180,11 +180,11 @@ class State:
                     if i == 0 and j == 0: # top left corner
                         v = Variable(str((i*self.dim+j)), ['S','.','<','^'],j,i) # can't have 'v' or '>' or 'M' piece
                     elif i == self.dim-1 and j == self.dim-1: # bottom right corner
-                        v = Variable(str((i*self.dim+j)), ['S','.','>','v'],j,i) # can't have '^' or '<' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','v'],j,i) # can't have '^' or '<' or 'M' piece
                     elif i == 0 and j == self.dim-1: # top right corner
-                        v = Variable(str((i*self.dim+j)), ['S','.','>','^'],j,i) # can't have 'v' or '<' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','>','^'],j,i) # can't have 'v' or '<' or 'M' piece
                     elif i == self.dim-1 and j == 0: # bottom left corner
-                        v = Variable(str((i*self.dim+j)), ['S','.','<','v'],j,i) # can't have '^' or '>' piece
+                        v = Variable(str((i*self.dim+j)), ['S','.','<','v'],j,i) # can't have '^' or '>' or 'M' piece
                     elif i == 0: # top edge
                         v = Variable(str((i*self.dim+j)), ['S','.','<','>','^','M'],j,i) # can't have 'v' piece
                     elif i == self.dim-1: # bottom edge
@@ -316,7 +316,7 @@ class Variable:
                 var.restoreVal(val)
             del Variable.undoDict[dkey]
 
-class NValuesConstraint(Constraint): #TODO modify starter code 
+class water_constraints(Constraint): #TODO modify starter code 
     '''NValues constraint over a set of variables.  Among the variables in
     the constraint's scope the number that have been assigned
     values in the set 'required_values' is in the range
@@ -373,17 +373,17 @@ class NValuesConstraint(Constraint): #TODO modify starter code
         def valsOK(l):
             '''tests a list of assignments which are pairs (var,val)
             to see if they can satisfy this sum constraint'''
-            rv_count = 0
-            vals = [val for (var, val) in l]
+            rv_count = 0 #count of required values
+            vals = [val for (var, val) in l] #list of values in the assignment
             for v in vals:
-                if v in self._required:
+                if v in self._required: #if the value is a required value
                     rv_count += 1
-            least = rv_count + self.arity() - len(vals)
-            most =  rv_count
-            return self._lb <= least and self._ub >= most
-        varsToAssign = self.scope()
-        varsToAssign.remove(var)
-        x = findvals(varsToAssign, [(var, val)], valsOK, valsOK)
+            least = rv_count + self.arity() - len(vals) #the least number of required values that could be in the assignment
+            most =  rv_count #the most number of required values that could be in the assignment
+            return self._lb <= least and self._ub >= most #return true if the number of required values is in the range
+        varsToAssign = self.scope() #list of variables in the constraint
+        varsToAssign.remove(var) #remove the variable that is being assigned
+        x = findvals(varsToAssign, [(var, val)], valsOK, valsOK) #find an assignment that satisfies the constraint
         return x
 
 class row_constraints(Constraint):
@@ -436,7 +436,10 @@ class row_constraints(Constraint):
                 if l[i][1] == 'S' or l[i][1] == 'M' or l[i][1] == '<'\
                     or l[i][1] == '>' or l[i][1] == '^' or l[i][1] == 'v':
                     ship_parts += 1
-            return ship_parts <= self.row_constraint # True if valid (num ship parts <= row constraint)
+            if len(l) < len(self.scope()):
+                return ship_parts <= self.row_constraint # True if valid so far (num ship parts <= row constraint)
+            else:
+                return ship_parts == self.row_constraint # True if valid (num ship parts == row constraint)
             # vals = [val for (var, val) in l]
             # return len(set(vals)) == len(vals)
 
@@ -498,7 +501,10 @@ class col_constraints(Constraint):
                 if l[i][1] == 'S' or l[i][1] == 'M' or l[i][1] == '<'\
                     or l[i][1] == '>' or l[i][1] == '^' or l[i][1] == 'v':
                     ship_parts += 1
-            return ship_parts <= self.col_constraint # True if valid (num ship parts <= col constraint)
+            if len(l) < len(self.scope()):
+                return ship_parts <= self.col_constraint
+            else:
+                return ship_parts <= self.col_constraint # True if valid (num ship parts <= col constraint)
             # vals = [val for (var, val) in l]
             # return len(set(vals)) == len(vals)
 
@@ -662,7 +668,6 @@ def backtrack(assignment, csp, state):
             return assignment
         else:
             return None
-        #return assignment
     
     var = select_unassigned_variable(csp)
     
@@ -671,7 +676,7 @@ def backtrack(assignment, csp, state):
 
     for value in var._curdom:
         all_constraints = [] # list of what constraints are satisfied
-        for c in csp.constraintsOf(var): # loop through all the constraints
+        for c in csp.constraintsOf(var): # loop through all the constraints (the conslist initialized in main)
             if c.hasSupport(var, value) == True:
                 all_constraints.append(True)
             else:
@@ -755,7 +760,7 @@ def implement_assignment(assignment, state):
     # make a board (list of lists) with the same dimensions as the original board:
     new_board = [['0' for j in range(state.dim)] for i in range(state.dim)]
 
-    if len(assignment) == 0:
+    if assignment==None:
         return state.board
 
     for var in assignment:
@@ -839,7 +844,7 @@ if __name__ == '__main__':
 
     print("\ndimensions: ", state.dim)
 
-    #define row and column constraints
+    # ***************** initialize row and column constraints *****************
     conslist = [] # list containing all the constraints in format 
 
     for i in range(state.dim):
@@ -849,7 +854,39 @@ if __name__ == '__main__':
             rowi.append(state.varn[str(i*state.dim+j)]) # varn is the dictionary of variables
             coli.append(state.varn[str(i+j*state.dim)])
         conslist.append(row_constraints('row'+str(i),rowi,state.row_constraints[i]))
-        conslist.append(col_constraints('col'+str(i),coli,state.col_constraints[i]))
+        conslist.append(col_constraints('col'+str(i),coli,state.col_constraints[i])) #TODO - i or j?
+
+    # ***************** initialize water constraints **************************
+
+    # starting at row 2, iterate through every other row. for each variable
+    # in that row, add a water constraint for each of its 4 diagonals (4
+    # binary constraints for each variable). vertical edges will only have 2 
+    # binary constraints each. if we get to the bottom row, the corners will only 
+    # have 1 binary constraint to check, and the rest will only have 2. 
+    # of each pair of diagonal vars, at least one must 
+    # be water. TODO later - implement water constraint for submarines and tails. 
+
+    for i in range(1, state.dim, 2):
+        for j in range(state.dim):
+            if i == state.dim-1 and j==0: # bottom left corner - only check top right diagonal
+                # below parameters: name, vars, vals, min # of those vars that can have that val, max # of those vars that can have that val
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j+1)]], ['.'], 1, 2))
+            elif i == state.dim-1 and j==state.dim-1: # bottom right corner - only check top left diagonal
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j-1)]], ['.'], 1, 2))
+            elif i == state.dim-1: # bottom edge - check top left and top right diagonals
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j-1)]], ['.'], 1, 2)) # top left diagonal
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j+1)]], ['.'], 1, 2)) # top right diagonal
+            elif j == 0: # left edge - check top right and bottom right diagonals
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j+1)]], ['.'], 1, 2)) # top right diagonal
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i+1)*state.dim+j+1)]], ['.'], 1, 2)) # bottom right diagonal
+            elif j == state.dim-1: # right edge - check top left and bottom left diagonals
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j-1)]], ['.'], 1, 2)) # top left diagonal
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i+1)*state.dim+j-1)]], ['.'], 1, 2)) # bottom left diagonal
+            else: # middle - check all 4 diagonals
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j+1)]], ['.'], 1, 2)) # top right diagonal
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i+1)*state.dim+j+1)]], ['.'], 1, 2)) # bottom right diagonal
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j-1)]], ['.'], 1, 2)) # top left diagonal
+                conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i+1)*state.dim+j-1)]], ['.'], 1, 2)) # bottom left diagonal
 
     # create the CSP:
     csp = CSP('Battleship', state.variables, conslist)
@@ -858,7 +895,7 @@ if __name__ == '__main__':
     # board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
     # print("attempt at check board: ", check_ship_constraints({}, state))
 
-    # run backtracking search
+    # ************************ run backtracking search ************************
     print("\n********** Running backtracking search... **********")
     start = time.time()
     assignment = backtrack_search(csp, state) # format: {var1: value1, var2: value2, ...}
