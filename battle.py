@@ -136,6 +136,7 @@ class State:
         self.ship_constraints = None
         self.variables = [] # list of variables (cell-based_)
         self.varn = {} # dictionary of variables; key = str(i*dim+j), value = Variable class item
+        self.hints = []
 
     def display(self):
         for i in self.board:
@@ -622,7 +623,7 @@ class CSP:
         self._name = name
         self._variables = variables
         self._constraints = constraints
-        self.solution = []
+        self.solution = ''
 
         #some sanity checks
         varsInCnst = set()
@@ -734,7 +735,7 @@ class CSP:
             if try_it[0] == True:
                 print("try_it[1]: ")
                 print(try_it[1]) 
-                self.solution.append(deepcopy(try_it[1]))
+                self.solution += deepcopy(try_it[1])
                 sol_found = True
                 # self.solution.append(deepcopy(assigned)) # or return check_ship_constraaints[1] because thats the filled in board?
 
@@ -745,7 +746,7 @@ class CSP:
 
                 return True # TODO what should i be returning? or breaak here??
             else:
-                return  # TODO what should i be returning? if anything?
+                return  False# TODO what should i be returning? if anything?
             # for var in unassignedvars: # variables = unassignedvars??
             #     print(var.name(), " = ", var.getValue()) # TODO is this correct syntax for these included functions?? and what's the point of this line??
             # allSolutions = None # TODO: flag to indicate if you want to stop after finding first sol or keep going
@@ -891,7 +892,7 @@ def check_ship_constraints(assignment, state):
 
     # implement the assignment changes to the board:
     new_board = implement_assignment(assignment, state)
-
+    # print("HINTS: ", state.hints)
 #TODO DELETE LATER:
     # new_board = state.board
 
@@ -921,12 +922,7 @@ def check_ship_constraints(assignment, state):
     if bad_cases > 0:
         return (False, "Error: Ships overlap.")
 
-    # for row in rows:
-    #     for i in range(len(row)-1):
-    #         if row[i] == 'M' or row[i+1] == 'M':   # middles will always be in between ends
-    #             pass
-    #         elif row[i] != '.' and row[i+1] != '.' and row[i] != row[i+1]: 
-    #             return (False, "Error: Ships overlap.")
+    dim = len(rows_list)
 
     # count the number of each type of ship other than S:
     destroyers_count = rows.count("<>") + cols.count("^v")
@@ -935,7 +931,6 @@ def check_ship_constraints(assignment, state):
 
     # print("rows board with string method: \n", rows)
     # combine both to get solution board:
-    dim = len(rows_list)
 
     # convert col string back to list of lists, and split it at the newlines:
     cols_list = []
@@ -964,6 +959,19 @@ def check_ship_constraints(assignment, state):
     submarines_count = sol_board.count('S')
     # print("submarines count: ", submarines_count)
     # print(sol_board)
+
+    # ensure that all of the previous hints are still in place: TODO FIX THIS
+    # take out all \n characters:
+    sol_string = sol_board.replace("\n", "")
+    # print("sol_string: ", sol_string)
+    for hint in state.hints:
+        # check that coordinate of hint is in same place as string equivalent in sol_board
+        str_x = hint[1]
+        str_y = hint[0]*dim
+        # print("is this running?")
+        # print(hint._value)
+        if hint[2] != sol_string[str_y + str_x]:
+            return (False, "Error: Hint is not in the correct place.")
 
     # check if the number of each type of ship is correct:
     if submarines_count == submarines and destroyers_count == destroyers and \
@@ -1219,15 +1227,43 @@ def findvals_(remainingVars, assignment, finalTestfn, partialTestfn):
     remainingVars.append(var) # put the variable back in the list of remaining variables - nothing works for this value
     return False
 
+def write_solution(solution, outputfile): 
+    '''Given the solution, write it to the output file.'''
+
+    file = open(outputfile, "w")
+
+    file.write(solution)
+    file.close()
 
 if __name__ == '__main__':
-
-    # read a test file
-    filename = 'input.txt'
+    # For running in terminal purposes:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--inputfile",
+        type=str,
+        required=True,
+        help="The input file that contains the puzzle."
+    )
+    parser.add_argument(
+        "--outputfile",
+        type=str,
+        required=True,
+        help="The output file that contains the solution."
+    )
+    args = parser.parse_args()
     
     state = State()
-    state.read_from_file(filename)
+    state.read_from_file(args.inputfile)
     state.display()
+
+    # find and store any hints in the board:
+    for i in range(state.dim):
+        for j in range(state.dim):
+            if state.board[i][j] != '0':
+                val = state.board[i][j]
+                state.hints.append((i, j, val))
+    
+    print("HINTS:", state.hints)
 
     # precondition the board: surround any ships with water, fill any 0 rows/cols with water
     state.precondition_state()
@@ -1236,14 +1272,15 @@ if __name__ == '__main__':
 
     state.init_variables() # initialize variables
 
-    print("row constraints:", state.row_constraints)
-    print("col constraints:", state.col_constraints)
-    # print("ship constraints:", state.ship_constraints)
-    print("\nnumber of submarines: ", state.ship_constraints[0])
-    print("number of destroyers (1x2): ", state.ship_constraints[1])
-    print("number of cruisers (1x3): ", state.ship_constraints[2])
-    print("number of battleships (1x4): ", state.ship_constraints[3])
-    print("dimensions: ", state.dim)
+
+    # print("row constraints:", state.row_constraints)
+    # print("col constraints:", state.col_constraints)
+    # # print("ship constraints:", state.ship_constraints)
+    # print("\nnumber of submarines: ", state.ship_constraints[0])
+    # print("number of destroyers (1x2): ", state.ship_constraints[1])
+    # print("number of cruisers (1x3): ", state.ship_constraints[2])
+    # print("number of battleships (1x4): ", state.ship_constraints[3])
+    # print("dimensions: ", state.dim)
 
     conslist = [] # list containing all the constraints in format 
 
@@ -1292,6 +1329,18 @@ if __name__ == '__main__':
     # create the CSP:
     csp = CSP('Battleship', state.variables, conslist)
 
+    # call gac on unassigned variables:
+    unassigned = []
+    pre_assigned = []
+    # print("state variables: ", state.variables)
+    for var in state.variables:
+        if not var.isAssigned():
+            unassigned.append(var)
+        else:
+            pass
+            #var._curdom.remove(var.getValue())
+            # pre_assigned.append(deepcopy(var))
+
     # ************************ run backtracking search ************************
     # print("\n********** Running backtracking search... **********")
     # start = time.time()
@@ -1306,15 +1355,6 @@ if __name__ == '__main__':
 
     print("\n********** Running GAC... **********")
     start = time.time()
-    # call gac on unassigned variables:
-    unassigned = []
-    # print("state variables: ", state.variables)
-    for var in state.variables:
-        if not var.isAssigned():
-            unassigned.append(var)
-        else:
-            var._curdom.remove(var.getValue())
-
     # print("unassigned variaables before GAC: ", unassigned)
     assignment = csp.gac(unassigned, state)
     assignment = csp.solution
@@ -1333,3 +1373,9 @@ if __name__ == '__main__':
     #     for j in range(len(sol_board[i])):
     #         print(sol_board[i][j], end='')
     #     print()
+
+    # ********************* write solution to output ************************
+
+    # print("\nWriting solution to output file...")
+    # print("type of csp.solution: ", type(csp.solution))
+    write_solution(csp.solution, args.outputfile)

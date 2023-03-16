@@ -221,6 +221,13 @@ def check_ship_constraints_bad(assignment, state):
     #     else:
     #         sol_board += c
 
+        # for row in rows:
+    #     for i in range(len(row)-1):
+    #         if row[i] == 'M' or row[i+1] == 'M':   # middles will always be in between ends
+    #             pass
+    #         elif row[i] != '.' and row[i+1] != '.' and row[i] != row[i+1]: 
+    #             return (False, "Error: Ships overlap.")
+
     # from main testing:
     # # random
     # print("PLEASE WORK")
