@@ -236,3 +236,80 @@ def check_ship_constraints_bad(assignment, state):
     # print("\n checking ship constraints: ", check_ship_constraints([], state))
     # board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
     # print("attempt at check board: ", check_ship_constraints({}, state))
+
+
+    # from backtrack: 
+                # inferences = inference(var, value, assignment, csp) #TODO random suggested code
+            # if inferences != False:
+            #     assignment.update(inferences)
+            #     result = backtrack(assignment, csp)
+            #     if result != False:
+            #         return result
+            # assignment.pop(var)
+
+                    # return assignment
+        # solutions.append(assignment)
+
+    # print("rows board with string method: \n", rows)
+    # combine both to get solution board:
+
+    # from gac:
+                    # print("returned assigned here if ship constraints good: ")
+                # #TESTING
+                # board = implement_assignment(assigned, state)
+                # print("board: ", board)
+
+                            # for var in unassignedvars: # variables = unassignedvars??
+            #     print(var.name(), " = ", var.getValue()) # TODO is this correct syntax for these included functions?? and what's the point of this line??
+            # allSolutions = None # TODO: flag to indicate if you want to stop after finding first sol or keep going
+            # if allSolutions: 
+            #     return # continue search to print all solutions
+            # else:
+            #     return # exit or return?? Terminate aafter one solution found
+        # print("testpoint")
+
+# from row constraints class:
+    def check(self, k): # TODO fix - probably wrong
+        '''Loop through every variable in the scope (variables in row or column 
+        k and checks if it breaks the constraint.'''
+
+        assignments = [] # list of values for the row 
+        ship_parts = 0 # initialize number of ship parts in the row 
+        # num =  # number of ship parts in the row
+
+        # for v in self.scope()[k]: # loop through variables in row k
+        #     if v.isAssigned():
+        #         assignments.append(v.getValue())
+        #         # increment ship_parts if the value is a ship part:
+        #         if v.getValue() == 'S' or v.getValue() == 'M' or v.getValue() == '<'\
+        #             or v.getValue() == '>' or v.getValue() == '^' or v.getValue() == 'v':
+        #             ship_parts += 1
+        #     else:
+        #         # if ship_parts <= row constraint TODO??????????
+        #         return True # if not all variables are assigned, return True
+        # pass
+        # for ass in assignments:
+        # # return 
+
+# from precondition state:
+        # # if any hints given of ships, surround diagonals with water:
+        # for i in range(len(self.board)):
+        #     for j in range(len(self.board[i])):
+        #         if self.board[i][j] == 'S': # submarine - surround completely with water
+        #             if i > 0 and j > 0:
+        #                 self.board[i-1][j-1] = '.' # top left
+        #             if i > 0 and j < len(self.board[i])-1:
+        #                 self.board[i-1][j+1] = '.' # top right
+        #             if i < len(self.board)-1 and j > 0:
+        #                 self.board[i+1][j-1] = '.' # bottom left
+        #             if i < len(self.board)-1 and j < len(self.board[i])-1:
+        #                 self.board[i+1][j+1] = '.' # bottom right
+        #             if i > 0:
+        #                 self.board[i-1][j] = '.' # top
+        #             if i < len(self.board)-1:
+        #                 self.board[i+1][j] = '.' # bottom
+        #             if j > 0:
+        #                 self.board[i][j-1] = '.' # left
+        #             if j < len(self.board[i])-1:
+        #                 self.board[i][j+1] = '.' # right
+                # elif self.board[i][j] == 'B': # battleship - surround with water

@@ -190,28 +190,6 @@ class State:
                         self.board[i+1][j-1] = '.'
                     if i < len(self.board)-1 and j < len(self.board[i])-1:
                         self.board[i+1][j+1] = '.'
-        
-        # # if any hints given of ships, surround diagonals with water:
-        # for i in range(len(self.board)):
-        #     for j in range(len(self.board[i])):
-        #         if self.board[i][j] == 'S': # submarine - surround completely with water
-        #             if i > 0 and j > 0:
-        #                 self.board[i-1][j-1] = '.' # top left
-        #             if i > 0 and j < len(self.board[i])-1:
-        #                 self.board[i-1][j+1] = '.' # top right
-        #             if i < len(self.board)-1 and j > 0:
-        #                 self.board[i+1][j-1] = '.' # bottom left
-        #             if i < len(self.board)-1 and j < len(self.board[i])-1:
-        #                 self.board[i+1][j+1] = '.' # bottom right
-        #             if i > 0:
-        #                 self.board[i-1][j] = '.' # top
-        #             if i < len(self.board)-1:
-        #                 self.board[i+1][j] = '.' # bottom
-        #             if j > 0:
-        #                 self.board[i][j-1] = '.' # left
-        #             if j < len(self.board[i])-1:
-        #                 self.board[i][j+1] = '.' # right
-                # elif self.board[i][j] == 'B': # battleship - surround with water
 
     def init_variables(self):
         '''Initialize the variables of the problem; each cell on the board is 
@@ -238,7 +216,6 @@ class State:
                 self.varn[str((i*self.dim+j))] = v # add the variable to the dictionary of variables
                 # add the variable to the board:
                 # self.board[i][j] = v #TODO - is this line necessary??
-
 
     def init_variables_bad(self):
         '''Initialize the variables of the problem; each cell on the board is 
@@ -473,28 +450,6 @@ class row_constraints(Constraint):
         self._name = "row_constraints" + name
         self.row_constraint = row_constraint
         # self.col_constraints = col_constraints
-
-    def check(self, k): # TODO fix - probably wrong
-        '''Loop through every variable in the scope (variables in row or column 
-        k and checks if it breaks the constraint.'''
-
-        assignments = [] # list of values for the row 
-        ship_parts = 0 # initialize number of ship parts in the row 
-        # num =  # number of ship parts in the row
-
-        # for v in self.scope()[k]: # loop through variables in row k
-        #     if v.isAssigned():
-        #         assignments.append(v.getValue())
-        #         # increment ship_parts if the value is a ship part:
-        #         if v.getValue() == 'S' or v.getValue() == 'M' or v.getValue() == '<'\
-        #             or v.getValue() == '>' or v.getValue() == '^' or v.getValue() == 'v':
-        #             ship_parts += 1
-        #     else:
-        #         # if ship_parts <= row constraint TODO??????????
-        #         return True # if not all variables are assigned, return True
-        # pass
-        # for ass in assignments:
-        # # return 
 
     def hasSupport(self, var, val):
         '''Checks if the variables other than the one assigned (val) are 
@@ -738,23 +693,10 @@ class CSP:
                 self.solution += deepcopy(try_it[1])
                 sol_found = True
                 # self.solution.append(deepcopy(assigned)) # or return check_ship_constraaints[1] because thats the filled in board?
-
-                # print("returned assigned here if ship constraints good: ")
-                # #TESTING
-                # board = implement_assignment(assigned, state)
-                # print("board: ", board)
-
                 return True # TODO what should i be returning? or breaak here??
             else:
                 return  False# TODO what should i be returning? if anything?
-            # for var in unassignedvars: # variables = unassignedvars??
-            #     print(var.name(), " = ", var.getValue()) # TODO is this correct syntax for these included functions?? and what's the point of this line??
-            # allSolutions = None # TODO: flag to indicate if you want to stop after finding first sol or keep going
-            # if allSolutions: 
-            #     return # continue search to print all solutions
-            # else:
-            #     return # exit or return?? Terminate aafter one solution found
-        # print("testpoint")
+
         var = unassignedvars.pop() # selecte next variable to assign
         for val in var.curDomain():
             var.setValue(val) # assign var = val
@@ -767,7 +709,6 @@ class CSP:
                 if sol_found == True:
                     return True
             # restore values pruned by var = val assignment:
-            #for var2 in unassignedvars: # variables = unassignedvars??
             var.restoreValues(var, val)
         var.unAssign() # unassign var; same as var.setValue(None)
         unassignedvars.append(var) # put var back on the stack. use insert??
@@ -836,9 +777,8 @@ def backtrack(assignment, csp, state):
     '''Try to assign values that satisfy the constraints. If it can't, backtrack and try again.'''
     # if assignment is complete, return assignment TODO - check what "complete" is and later implement forward checking 
     if len(assignment) == len(csp.variables()):
-        # return assignment
-        # solutions.append(assignment)
-        # now check if it satisfies the ship constraints: 
+
+        # now check if it satisfies the ship/water constraints, combine into final board: 
         if check_ship_constraints(assignment, state)[0] == True:
             return assignment
         else:
@@ -859,13 +799,7 @@ def backtrack(assignment, csp, state):
         if all(all_constraints) == True: # only if all constraints are satisfied, assign the value
             assignment[var] = value
             var.setValue(value)
-            # inferences = inference(var, value, assignment, csp) #TODO random suggested code
-            # if inferences != False:
-            #     assignment.update(inferences)
-            #     result = backtrack(assignment, csp)
-            #     if result != False:
-            #         return result
-            # assignment.pop(var)
+
             result = backtrack(assignment, csp, state) # look at remaining unassigned variables (recursive call)
             if result != None: # if result is not a failure
                 return result # if it worked, return the 
@@ -893,8 +827,6 @@ def check_ship_constraints(assignment, state):
     # implement the assignment changes to the board:
     new_board = implement_assignment(assignment, state)
     # print("HINTS: ", state.hints)
-#TODO DELETE LATER:
-    # new_board = state.board
 
     rows_list = new_board # the board is a list of rows
     rows = convert_to_str(rows_list) # convert the board to a string
@@ -928,9 +860,6 @@ def check_ship_constraints(assignment, state):
     destroyers_count = rows.count("<>") + cols.count("^v")
     cruisers_count = rows.count("<M>") + cols.count("^Mv")
     battleships_count = rows.count("<MM>") + cols.count("^MMv")
-
-    # print("rows board with string method: \n", rows)
-    # combine both to get solution board:
 
     # convert col string back to list of lists, and split it at the newlines:
     cols_list = []
@@ -1366,7 +1295,7 @@ if __name__ == '__main__':
     end = time.time()
     print("\nTime taken: ", end-start)
 
-    # # ************************ print solution ********************************
+    # # ******************* print backtracking solution ***********************
     # print("\nSolution:")
     # sol_board = implement_assignment(assignment, state)
     # for i in range(len(sol_board)):
