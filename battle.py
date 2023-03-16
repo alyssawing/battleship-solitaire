@@ -175,6 +175,21 @@ class State:
                 for j in range(len(self.board)):
                     self.board[j][i] = '.'
         
+        # look through the board for ship hints. replace with generic 'S' and
+        # surround diagonals with water:
+        for i in range(len(self.board)):
+            for j in range(len(self.board[i])):
+                if self.board[i][j] != '.' and self.board[i][j] != '0':
+                    self.board[i][j] = 'S'
+                    if i > 0 and j > 0:
+                        self.board[i-1][j-1] = '.'
+                    if i > 0 and j < len(self.board[i])-1:
+                        self.board[i-1][j+1] = '.'
+                    if i < len(self.board)-1 and j > 0:
+                        self.board[i+1][j-1] = '.'
+                    if i < len(self.board)-1 and j < len(self.board[i])-1:
+                        self.board[i+1][j+1] = '.'
+        
         # # if any hints given of ships, surround diagonals with water:
         # for i in range(len(self.board)):
         #     for j in range(len(self.board[i])):
@@ -868,7 +883,6 @@ def check_ship_constraints(assignment, state):
     state's ship constraints. It returns a tuple (True/False, message). The 
     message is either a string output of the solution or an error message.'''
 
-
     # the correct number of each type of ship is present:
     submarines = state.ship_constraints[0] # 'S'
     destroyers = state.ship_constraints[1] # 1x2
@@ -893,6 +907,26 @@ def check_ship_constraints(assignment, state):
     cols = cols.replace("SSSS", "^MMv")
     cols = cols.replace("SSS", "^Mv")
     cols = cols.replace("SS", "^v")
+
+    # if there are any consecutive ship parts that are from different ships (!= '.' then it's BAD)
+    # check rows:
+    bad_cases = 0
+    bad_cases += rows.count("><")
+    bad_cases += rows.count(">S")
+    bad_cases += rows.count("S<")
+    bad_cases += cols.count("v^")
+    bad_cases += cols.count("vS")
+    bad_cases += cols.count("S^")
+
+    if bad_cases > 0:
+        return (False, "Error: Ships overlap.")
+
+    # for row in rows:
+    #     for i in range(len(row)-1):
+    #         if row[i] == 'M' or row[i+1] == 'M':   # middles will always be in between ends
+    #             pass
+    #         elif row[i] != '.' and row[i+1] != '.' and row[i] != row[i+1]: 
+    #             return (False, "Error: Ships overlap.")
 
     # count the number of each type of ship other than S:
     destroyers_count = rows.count("<>") + cols.count("^v")
