@@ -132,3 +132,21 @@ def check_ship_constraints_bad(assignment, state):
 #     for var in assignment:
 #         new_state.board[var.y][var.x] = assignment[var]
 #     return new_state
+
+# I have two strings where one represents a board, and the second represents the transposed version. how 
+# do i combine them into a single board while keeping any pieces that are not '.' or 'S' from being overwritten: 
+# ......
+# .S..<>
+# .S....
+# .S.S.S
+# ...S..
+# S....S and 
+
+# .....S
+# .^Mv..
+# ......
+# ...^v.
+# .S....
+# .S.S.S
+
+# from check ship constraints:

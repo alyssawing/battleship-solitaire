@@ -793,6 +793,15 @@ def order_domain_values(var, assignment, csp):
     # return var.curDomain()
     pass
 
+def convert_to_str(board):
+    '''Convert the board to a string.'''
+    board_str = ""
+    for row in board:
+        for col in row:
+            board_str += str(col)
+        board_str += "\n"
+    return board_str
+
 # Backtracking search:
 def backtrack_search(csp, state):
     # The assignment should contain all variables that have already been assigned (hints)
@@ -852,6 +861,138 @@ def backtrack(assignment, csp, state):
         
 def check_ship_constraints(assignment, state):
     '''Given check if a full assignment (of a board) satisfies the original 
+    state's ship constraints. It returns a tuple (True/False, message). The 
+    message is either a string output of the solution or an error message.'''
+
+
+    # the correct number of each type of ship is present:
+    submarines = state.ship_constraints[0] # 'S'
+    destroyers = state.ship_constraints[1] # 1x2
+    cruisers = state.ship_constraints[2] # 1x3
+    battleships = state.ship_constraints[3] # 1x4
+
+    # implement the assignment changes to the board:
+    new_board = implement_assignment(assignment, state)
+
+#TODO DELETE LATER:
+    new_board = state.board
+
+    rows_list = new_board # the board is a list of rows
+    rows = convert_to_str(rows_list) # convert the board to a string
+    cols_list = list(zip(*rows_list)) # transpose the board to have a list of columns
+    cols = convert_to_str(cols_list) # convert the board to a string
+
+    # replace sequences of S's with their representative ships:
+    rows = rows.replace("SSSS", "<MM>")
+    rows = rows.replace("SSS", "<M>")
+    rows = rows.replace("SS", "<>")
+    cols = cols.replace("SSSS", "^MMv")
+    cols = cols.replace("SSS", "^Mv")
+    cols = cols.replace("SS", "^v")
+
+    # print("rows board blashfbsdkf: \n", rows)
+
+    # count the number of each type of ship:
+    # submarines_count = rows.count("S") 
+    destroyers_count = rows.count("<>") + cols.count("^v")
+    cruisers_count = rows.count("<M>") + cols.count("^Mv")
+    battleships_count = rows.count("<MM>") + cols.count("^MMv")
+
+    # print("rows board with string method: \n", rows)
+    # combine both to get solution board:
+    sol_board = ""
+    dim = len(rows_list)
+
+
+
+
+    # for k in range(0,dim-1):
+    #     for i in range(0,dim):
+    #         if cols[i+(dim)] not in ['.', 'S', '\n']: 
+    #             sol_board += cols[i+(dim)]
+    #         else: 
+    #             sol_board += rows[i]
+    #     print("progress: ", sol_board)
+
+
+    # combined_board = rows.split('\n')[0] + '\n'
+
+    # Combine the rows and columns strings to create the combined board string
+    # combined_board = ''
+    # for i in range(len(rows[0])):
+    #     row_str = ''
+    #     for j in range(len(cols)):
+    #         # Get the corresponding character in cols
+    #         col_char = cols[j][i]
+    #         # Get the corresponding character in rows
+    #         row_char = rows[j][i]
+    #         # Determine which character to use in the combined board
+    #         if col_char not in ['.', 'S']:
+    #             row_str += col_char
+    #         elif row_char not in ['.', 'S']:
+    #             row_str += row_char
+    #         else:
+    #             row_str += '.'
+    #     # Add newline character after all columns in a row are processed
+    #     combined_board += row_str + '\n'
+    # # Remove extra newline character at the end of the string
+    # combined_board = combined_board.rstrip('\n')
+
+    # for i in range(len(rows)):
+    #     for j in range(len(cols)):
+    #         if cols[j][i] not in ('.', 'S'):
+    #             combined_board += cols[j][i]
+    #         elif rows.split('\n')[i][j] not in ('.', 'S'):
+    #             combined_board += rows.split('\n')[i][j]
+    #         else:
+    #             combined_board += '.'
+
+    #     if i != len(rows) - 1:
+    #         combined_board += '\n'
+
+    # print(combined_board)
+
+    # # Print the combined board string
+    # print("combined board:",combined_board)
+
+    # for i in range(len(rows)):
+    #     combined_row = ''
+    #     for j in range(len(rows[i])):
+    #         if cols[j][i] not in ['.', 'S']:
+    #             combined_row += cols[j][i]
+    #         else:
+    #             combined_row += rows[i][j]
+    #     sol_board += combined_row + '\n'
+
+    # for i, c in enumerate(rows):
+    #     if c=='\n':
+    #         #sol_board += c
+    #         continue
+    #     print("i and c: ", i, c)
+    #     if cols[i] not in ('.', 'S'):
+    #         sol_board += cols[i]
+    #     #lif c not in ('.', 'S'):
+    #     else:
+    #         sol_board += c
+
+    submarines_count = sol_board.count('S')
+    print("submarines count: ", submarines_count)
+    print(sol_board)
+    
+    # print("rows board with string method: \n", rows)
+    # print("\ncols board with string method: \n", cols)
+
+    # check if the number of each type of ship is correct:
+    if submarines_count == submarines and destroyers_count == destroyers and \
+        cruisers_count == cruisers and battleships_count == battleships:
+        return True, sol_board
+    
+    return False, "wrong"
+
+    #TODO - redo everything from here. convert new_board into strings to iteratate better
+
+def check_ship_constraints_verybad(assignment, state):
+    '''Given check if a full assignment (of a board) satisfies the original 
     state's ship constraints.'''
 
     # the correct number of each type of ship is present:
@@ -863,6 +1004,8 @@ def check_ship_constraints(assignment, state):
     # implement the assignment changes to the board:
     new_board = implement_assignment(assignment, state)
     # new_board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
+
+    #TODO - redo everything from here. convert new_board into strings to iteratate better
 
     rows_list = new_board # the board is a list of rows
     cols_list = list(zip(*rows_list)) # transpose the board to have a list of columns
@@ -1188,32 +1331,32 @@ if __name__ == '__main__':
 
     # ********************************* run GAC *******************************
 
-    print("\n********** Running GAC... **********")
-    start = time.time()
-    # call gac on unassigned variables:
-    unassigned = []
-    # print("state variables: ", state.variables)
-    for var in state.variables:
-        if not var.isAssigned():
-            unassigned.append(var)
-        else:
-            var._curdom.remove(var.getValue())
+    # print("\n********** Running GAC... **********")
+    # start = time.time()
+    # # call gac on unassigned variables:
+    # unassigned = []
+    # # print("state variables: ", state.variables)
+    # for var in state.variables:
+    #     if not var.isAssigned():
+    #         unassigned.append(var)
+    #     else:
+    #         var._curdom.remove(var.getValue())
 
-    # print("unassigned variaables before GAC: ", unassigned)
-    assignment = csp.gac(unassigned, state)
-    assignment = csp.solution
-    # print(assignment)
-    # assignment = {}
-    # for i in state.variables:
-    #     assignment[i] = i.getValue()
-    # print("assignment after GAC: ", assignment)
-    end = time.time()
-    print("\nTime taken: ", end-start)
+    # # print("unassigned variaables before GAC: ", unassigned)
+    # assignment = csp.gac(unassigned, state)
+    # assignment = csp.solution
+    # # print(assignment)
+    # # assignment = {}
+    # # for i in state.variables:
+    # #     assignment[i] = i.getValue()
+    # # print("assignment after GAC: ", assignment)
+    # end = time.time()
+    # print("\nTime taken: ", end-start)
 
-    # ************************ print solution ********************************
-    print("\nSolution:")
-    sol_board = implement_assignment(assignment, state)
-    for i in range(len(sol_board)):
-        for j in range(len(sol_board[i])):
-            print(sol_board[i][j], end='')
-        print()
+    # # ************************ print solution ********************************
+    # print("\nSolution:")
+    # sol_board = implement_assignment(assignment, state)
+    # for i in range(len(sol_board)):
+    #     for j in range(len(sol_board[i])):
+    #         print(sol_board[i][j], end='')
+    #     print()
