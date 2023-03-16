@@ -175,31 +175,56 @@ class State:
                 for j in range(len(self.board)):
                     self.board[j][i] = '.'
         
-        # if any hints given of ships, surround diagonals with water:
-        for i in range(len(self.board)):
-            for j in range(len(self.board[i])):
-                if self.board[i][j] == 'S': # submarine - surround completely with water
-                    if i > 0 and j > 0:
-                        self.board[i-1][j-1] = '.' # top left
-                    if i > 0 and j < len(self.board[i])-1:
-                        self.board[i-1][j+1] = '.' # top right
-                    if i < len(self.board)-1 and j > 0:
-                        self.board[i+1][j-1] = '.' # bottom left
-                    if i < len(self.board)-1 and j < len(self.board[i])-1:
-                        self.board[i+1][j+1] = '.' # bottom right
-                    if i > 0:
-                        self.board[i-1][j] = '.' # top
-                    if i < len(self.board)-1:
-                        self.board[i+1][j] = '.' # bottom
-                    if j > 0:
-                        self.board[i][j-1] = '.' # left
-                    if j < len(self.board[i])-1:
-                        self.board[i][j+1] = '.' # right
+        # # if any hints given of ships, surround diagonals with water:
+        # for i in range(len(self.board)):
+        #     for j in range(len(self.board[i])):
+        #         if self.board[i][j] == 'S': # submarine - surround completely with water
+        #             if i > 0 and j > 0:
+        #                 self.board[i-1][j-1] = '.' # top left
+        #             if i > 0 and j < len(self.board[i])-1:
+        #                 self.board[i-1][j+1] = '.' # top right
+        #             if i < len(self.board)-1 and j > 0:
+        #                 self.board[i+1][j-1] = '.' # bottom left
+        #             if i < len(self.board)-1 and j < len(self.board[i])-1:
+        #                 self.board[i+1][j+1] = '.' # bottom right
+        #             if i > 0:
+        #                 self.board[i-1][j] = '.' # top
+        #             if i < len(self.board)-1:
+        #                 self.board[i+1][j] = '.' # bottom
+        #             if j > 0:
+        #                 self.board[i][j-1] = '.' # left
+        #             if j < len(self.board[i])-1:
+        #                 self.board[i][j+1] = '.' # right
                 # elif self.board[i][j] == 'B': # battleship - surround with water
 
-
-
     def init_variables(self):
+        '''Initialize the variables of the problem; each cell on the board is 
+        a variable.'''
+
+        # for every (i,j) cell on the board, create a variable:
+        for i in range(self.dim): # for each row
+            for j in range(self.dim): # for each col
+                v = None
+                if state.board[i][j] != '0': # if has been assigned (if they give initiial hints)
+                    # create a new variable:
+                    # v = Variable("v_{}_{}".format(i,j), [0,1])
+                    if state.board[i][j] == '.':
+                        v = Variable(str((i*self.dim+j)), self.board[i][j], j,i)
+                        v._value = self.board[i][j]
+                    else:
+                        v = Variable(str((i*self.dim+j)), 'S', j,i)
+                        v._value = 'S' # start by replacing all ship parts with just 'S'
+                else:
+                    # create a new variable:
+                    v = Variable(str((i*self.dim+j)), ['S','.'],j,i)
+        
+                self.variables.append(v) # add the variable to the list of variables
+                self.varn[str((i*self.dim+j))] = v # add the variable to the dictionary of variables
+                # add the variable to the board:
+                # self.board[i][j] = v #TODO - is this line necessary??
+
+
+    def init_variables_bad(self):
         '''Initialize the variables of the problem; each cell on the board is 
         a variable.'''
 
@@ -470,6 +495,21 @@ class row_constraints(Constraint):
             for the variables of one row, and k is the constraint number '''
             ship_parts = 0
             for i in range(len(l)):
+                if l[i][1] == 'S':
+                    ship_parts += 1
+            if len(l) < len(self.scope()):
+                return ship_parts <= self.row_constraint # True if valid so far (num ship parts <= row constraint)
+            else:
+                return ship_parts == self.row_constraint # True if valid (num ship parts == row constraint)
+            # vals = [val for (var, val) in l]
+            # return len(set(vals)) == len(vals)
+
+        def check_rows_bad(l):
+            ''' TODO tests a list of assignments which are pairs (var,val)
+            to see if they can satisfy the all diff. l is a list of tuples
+            for the variables of one row, and k is the constraint number '''
+            ship_parts = 0
+            for i in range(len(l)):
                 if l[i][1] == 'S' or l[i][1] == 'M' or l[i][1] == '<'\
                     or l[i][1] == '>' or l[i][1] == '^' or l[i][1] == 'v':
                     ship_parts += 1
@@ -674,14 +714,19 @@ class CSP:
                 if v.isAssigned() == True:
                     assigned[v] = v.getValue()
             # print("assigned from gac: ", assigned)
-            if check_ship_constraints(assigned, state) == True:
-                self.solution.append(deepcopy(assigned))
+
+            try_it = check_ship_constraints(assigned, state)
+            if try_it[0] == True:
+                print("try_it[1]: ", try_it[1])
+                self.solution.append(deepcopy(try_it[1]))
+                # self.solution.append(deepcopy(assigned)) # or return check_ship_constraaints[1] because thats the filled in board?
+
                 # print("returned assigned here if ship constraints good: ")
                 # #TESTING
                 # board = implement_assignment(assigned, state)
                 # print("board: ", board)
 
-                return assigned # TODO what should i be returning?
+                return assigned # TODO what should i be returning? or breaak here??
             else:
                 return  # TODO what should i be returning? if anything?
             # for var in unassignedvars: # variables = unassignedvars??
@@ -765,7 +810,7 @@ def backtrack(assignment, csp, state):
         # return assignment
         # solutions.append(assignment)
         # now check if it satisfies the ship constraints: 
-        if check_ship_constraints(assignment, state) == True:
+        if check_ship_constraints(assignment, state)[0] == True:
             return assignment
         else:
             return None
@@ -805,8 +850,133 @@ def backtrack(assignment, csp, state):
         # assignment.pop(var) # remove var from assignment
     return None # failure; no solution
         
-
 def check_ship_constraints(assignment, state):
+    '''Given check if a full assignment (of a board) satisfies the original 
+    state's ship constraints.'''
+
+    # the correct number of each type of ship is present:
+    submarines = state.ship_constraints[0] # 'S'
+    destroyers = state.ship_constraints[1] # 1x2
+    cruisers = state.ship_constraints[2] # 1x3
+    battleships = state.ship_constraints[3] # 1x4
+
+    # implement the assignment changes to the board:
+    new_board = implement_assignment(assignment, state)
+    # new_board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
+
+    rows_list = new_board # the board is a list of rows
+    cols_list = list(zip(*rows_list)) # transpose the board to have a list of columns
+
+    # iterate through rows list, looking for any consecutive 'S's. 
+    for j in range(len(rows_list)):
+        row = rows_list[j]
+        for i in range(len(row)):
+            if row[i] == 'S': # could be 'S', 'SS', 'SSS', or 'SSSS'
+                if i < len(row)-1:
+                    if row[i+1] == 'S':
+                        if i < len(row)-2:
+                            if row[i+2] == 'S':
+                                if i < len(row)-3:
+                                    if row[i+3] == 'S':
+                                        # found a battleship, so replace 'SSSS' with '<MM>
+                                        row[i+3] = '>'
+                                        row[i+2] = 'M'
+                                        row[i+1] = 'M'
+                                        row[i] = '<'
+                                        battleships -= 1
+                                    else:
+                                        # found a cruiser, so replace 'SSS' with '<M>'
+                                        row[i+2] = '>'
+                                        row[i+1] = 'M'
+                                        row[i] = '<'
+                                        cruisers -= 1
+                                else:
+                                    # found a cruiser, so replace 'SSS' with '<M>'
+                                        row[i+2] = '>'
+                                        row[i+1] = 'M'
+                                        row[i] = '<'
+                                        cruisers -= 1
+                                    
+                            else:
+                                # found a destroyer, so replace 'SS' with '<>'
+                                    row[i+1] = '>'
+                                    row[i] = '<'
+                                    destroyers -= 1
+                        else:
+                            # found a destroyer, so replace 'SS' with '<>'
+                            row[i+1] = '>'
+                            row[i] = '<'
+                            destroyers -= 1
+                else:
+                    # found a submarine or intersected with a vertical ship (so check above and below)
+                    if j > 0:
+                        if rows_list[j-1][i] == 'S':
+                            # intersected (another S above it)
+                            pass
+                        elif j < len(rows_list)-1:
+                            if rows_list[j+1][i] == 'S':
+                                # intersected (another S below it)
+                                pass
+                            else:
+                                submarines -=1
+                        else:
+                            # found a submarine
+                            submarines -= 1
+                    
+    
+    # iterate through cols list, looking for any consecutive 'S's - make modifications to the rows_list though
+    for col in cols_list:
+        for i in range(len(col)):
+            if col[i] == 'S':
+                if i < len(col)-1:
+                    if col[i+1] == 'S':
+                        if i < len(col)-2:
+                            if col[i+2] == 'S':
+                                if i < len(col)-3:
+                                    if col[i+3] == 'S':
+                                        # found a battleship, so replace 'SSSS' with '<MM>
+                                        rows_list[i+3][i] = '^'
+                                        rows_list[i+2][i] = 'M'
+                                        rows_list[i+1][i] = 'M'
+                                        rows_list[i][i] = 'v'
+                                        battleships -= 1
+                                    else:
+                                        # found a cruiser, so replace 'SSS' with '<M>'
+                                        rows_list[i+2][i] = '^'
+                                        rows_list[i+1][i] = 'M'
+                                        rows_list[i][i] = 'v'
+                                        cruisers -= 1
+                                else:
+                                    # found a cruiser, so replace 'SSS' with '<M>'
+                                    rows_list[i+2][i] = '^'
+                                    rows_list[i+1][i] = 'M'
+                                    rows_list[i][i] = 'v'
+                                    cruisers -= 1
+                            else:
+                                # found a destroyer, so replace 'SS' with '<>'
+                                rows_list[i+1][i] = '^'
+                                rows_list[i][i] = 'v'
+                                destroyers -= 1
+                        else:
+                            # found a destroyer, so replace 'SS' with '<>'
+                            rows_list[i+1][i] = '^'
+                            rows_list[i][i] = 'v'
+                            destroyers -= 1
+
+                # else:
+                # otherwise, found a submarine, so pass
+
+    print("remaaining submarines not found: ", submarines)
+    print("remaaining destroyers not found: ", destroyers)
+    print("remaaining cruisers not found: ", cruisers)
+    print("remaaining battleships not found: ", battleships)
+
+    if submarines == 0 and destroyers == 0 and cruisers == 0 and battleships == 0:
+        return [True, rows_list] # returns a tuple: (True, the new board)
+    else:
+        return [False, None] # does not satisfy the ship constraints
+
+def check_ship_constraints_bad(assignment, state):
     '''Given check if a full assignment (of a board) satisfies the original 
     state's ship constraints.'''
 
@@ -949,19 +1119,9 @@ if __name__ == '__main__':
     print("number of destroyers (1x2): ", state.ship_constraints[1])
     print("number of cruisers (1x3): ", state.ship_constraints[2])
     print("number of battleships (1x4): ", state.ship_constraints[3])
-    print("\ndimensions: ", state.dim)
+    print("dimensions: ", state.dim)
 
-    # ***************** initialize row and column constraints *****************
     conslist = [] # list containing all the constraints in format 
-
-    for i in range(state.dim):
-        rowi = []
-        coli = []
-        for j in range(state.dim):
-            rowi.append(state.varn[str(i*state.dim+j)]) # varn is the dictionary of variables
-            coli.append(state.varn[str(i+j*state.dim)])
-        conslist.append(row_constraints('row'+str(i),rowi,state.row_constraints[i]))
-        conslist.append(col_constraints('col'+str(i),coli,state.col_constraints[i])) #TODO - i or j?
 
     # ***************** initialize water constraints **************************
 
@@ -995,8 +1155,22 @@ if __name__ == '__main__':
                 conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i-1)*state.dim+j-1)]], ['.'], 1, 2)) # top left diagonal
                 conslist.append(water_constraints('water'+str(i)+str(j), [state.varn[str(i*state.dim+j)], state.varn[str((i+1)*state.dim+j-1)]], ['.'], 1, 2)) # bottom left diagonal
 
+    # ***************** initialize row and column constraints *****************
+    for i in range(state.dim):
+        rowi = []
+        coli = []
+        for j in range(state.dim):
+            rowi.append(state.varn[str(i*state.dim+j)]) # varn is the dictionary of variables
+            coli.append(state.varn[str(i+j*state.dim)])
+        conslist.append(row_constraints('row'+str(i),rowi,state.row_constraints[i]))
+        conslist.append(col_constraints('col'+str(i),coli,state.col_constraints[i])) #TODO - i or j?
+
     # create the CSP:
     csp = CSP('Battleship', state.variables, conslist)
+
+    # random
+    print("PLEASE WORK")
+    print(check_ship_constraints({}, state))
 
     # print("\n checking ship constraints: ", check_ship_constraints([], state))
     # board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
@@ -1025,9 +1199,9 @@ if __name__ == '__main__':
         else:
             var._curdom.remove(var.getValue())
 
-    print("unassigned variaables before GAC: ", unassigned)
+    # print("unassigned variaables before GAC: ", unassigned)
     assignment = csp.gac(unassigned, state)
-    assignment = csp.solution[0]
+    assignment = csp.solution
     # print(assignment)
     # assignment = {}
     # for i in state.variables:
