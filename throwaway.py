@@ -150,3 +150,82 @@ def check_ship_constraints_bad(assignment, state):
 # .S.S.S
 
 # from check ship constraints:
+
+
+    # for k in range(0,dim-1):
+    #     for i in range(0,dim):
+    #         if cols[i+(dim)] not in ['.', 'S', '\n']: 
+    #             sol_board += cols[i+(dim)]
+    #         else: 
+    #             sol_board += rows[i]
+    #     print("progress: ", sol_board)
+
+
+    # combined_board = rows.split('\n')[0] + '\n'
+
+    # Combine the rows and columns strings to create the combined board string
+    # combined_board = ''
+    # for i in range(len(rows[0])):
+    #     row_str = ''
+    #     for j in range(len(cols)):
+    #         # Get the corresponding character in cols
+    #         col_char = cols[j][i]
+    #         # Get the corresponding character in rows
+    #         row_char = rows[j][i]
+    #         # Determine which character to use in the combined board
+    #         if col_char not in ['.', 'S']:
+    #             row_str += col_char
+    #         elif row_char not in ['.', 'S']:
+    #             row_str += row_char
+    #         else:
+    #             row_str += '.'
+    #     # Add newline character after all columns in a row are processed
+    #     combined_board += row_str + '\n'
+    # # Remove extra newline character at the end of the string
+    # combined_board = combined_board.rstrip('\n')
+
+    # for i in range(len(rows)):
+    #     for j in range(len(cols)):
+    #         if cols[j][i] not in ('.', 'S'):
+    #             combined_board += cols[j][i]
+    #         elif rows.split('\n')[i][j] not in ('.', 'S'):
+    #             combined_board += rows.split('\n')[i][j]
+    #         else:
+    #             combined_board += '.'
+
+    #     if i != len(rows) - 1:
+    #         combined_board += '\n'
+
+    # print(combined_board)
+
+    # # Print the combined board string
+    # print("combined board:",combined_board)
+
+    # for i in range(len(rows)):
+    #     combined_row = ''
+    #     for j in range(len(rows[i])):
+    #         if cols[j][i] not in ['.', 'S']:
+    #             combined_row += cols[j][i]
+    #         else:
+    #             combined_row += rows[i][j]
+    #     sol_board += combined_row + '\n'
+
+    # for i, c in enumerate(rows):
+    #     if c=='\n':
+    #         #sol_board += c
+    #         continue
+    #     print("i and c: ", i, c)
+    #     if cols[i] not in ('.', 'S'):
+    #         sol_board += cols[i]
+    #     #lif c not in ('.', 'S'):
+    #     else:
+    #         sol_board += c
+
+    # from main testing:
+    # # random
+    # print("PLEASE WORK")
+    # print(check_ship_constraints({}, state))
+
+    # print("\n checking ship constraints: ", check_ship_constraints([], state))
+    # board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
+    # print("attempt at check board: ", check_ship_constraints({}, state))

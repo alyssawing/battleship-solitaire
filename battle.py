@@ -706,7 +706,7 @@ class CSP:
 
     def gac(self, unassignedvars, state): # can use unAssignedVars from Constraint class
         '''Establish GAC on all constraints involving unassigned variables.'''
-
+        # sol_found = False
         if len(unassignedvars) == 0: # if complete assignment
             # check ship constraints:
             assigned = {}
@@ -715,10 +715,12 @@ class CSP:
                     assigned[v] = v.getValue()
             # print("assigned from gac: ", assigned)
 
-            try_it = check_ship_constraints(assigned, state)
+            try_it = check_ship_constraints(assigned, state) # (True, board) if ship_constraints satisfied
             if try_it[0] == True:
-                print("try_it[1]: ", try_it[1])
+                print("try_it[1]: ")
+                print(try_it[1]) 
                 self.solution.append(deepcopy(try_it[1]))
+                sol_found = True
                 # self.solution.append(deepcopy(assigned)) # or return check_ship_constraaints[1] because thats the filled in board?
 
                 # print("returned assigned here if ship constraints good: ")
@@ -726,7 +728,7 @@ class CSP:
                 # board = implement_assignment(assigned, state)
                 # print("board: ", board)
 
-                return assigned # TODO what should i be returning? or breaak here??
+                return True # TODO what should i be returning? or breaak here??
             else:
                 return  # TODO what should i be returning? if anything?
             # for var in unassignedvars: # variables = unassignedvars??
@@ -745,13 +747,15 @@ class CSP:
                 # only vara's domain changed-constraints with var have to be checked
                 noDWO = False
             if noDWO:
-                self.gac(unassignedvars, state) # recursive call
+                sol_found = self.gac(unassignedvars, state) # recursive call
+                if sol_found == True:
+                    return True
             # restore values pruned by var = val assignment:
             #for var2 in unassignedvars: # variables = unassignedvars??
             var.restoreValues(var, val)
         var.unAssign() # unassign var; same as var.setValue(None)
         unassignedvars.append(var) # put var back on the stack. use insert??
-        return
+        return False
         
     def __str__(self):
         return "CSP {}".format(self.name())
@@ -875,7 +879,7 @@ def check_ship_constraints(assignment, state):
     new_board = implement_assignment(assignment, state)
 
 #TODO DELETE LATER:
-    new_board = state.board
+    # new_board = state.board
 
     rows_list = new_board # the board is a list of rows
     rows = convert_to_str(rows_list) # convert the board to a string
@@ -890,97 +894,42 @@ def check_ship_constraints(assignment, state):
     cols = cols.replace("SSS", "^Mv")
     cols = cols.replace("SS", "^v")
 
-    # print("rows board blashfbsdkf: \n", rows)
-
-    # count the number of each type of ship:
-    # submarines_count = rows.count("S") 
+    # count the number of each type of ship other than S:
     destroyers_count = rows.count("<>") + cols.count("^v")
     cruisers_count = rows.count("<M>") + cols.count("^Mv")
     battleships_count = rows.count("<MM>") + cols.count("^MMv")
 
     # print("rows board with string method: \n", rows)
     # combine both to get solution board:
-    sol_board = ""
     dim = len(rows_list)
 
+    # convert col string back to list of lists, and split it at the newlines:
+    cols_list = []
+    for i in range(dim):
+        cols_list.append(cols.splitlines()[i])
+        for c in range(dim):
+            cols_list[i] = list(cols_list[i])
 
+    # transpose the cols list back: 
+    cols_list = list(zip(*cols_list))   
+    # print("cols_list: ", cols_list)
 
+    # convert back to string:
+    cols = convert_to_str(cols_list)
 
-    # for k in range(0,dim-1):
-    #     for i in range(0,dim):
-    #         if cols[i+(dim)] not in ['.', 'S', '\n']: 
-    #             sol_board += cols[i+(dim)]
-    #         else: 
-    #             sol_board += rows[i]
-    #     print("progress: ", sol_board)
+    # combine both to get solution board. Overwrite anything in rows with col elem  if not in ['S', '.', '\n']:
+    sol_board = ""
 
-
-    # combined_board = rows.split('\n')[0] + '\n'
-
-    # Combine the rows and columns strings to create the combined board string
-    # combined_board = ''
-    # for i in range(len(rows[0])):
-    #     row_str = ''
-    #     for j in range(len(cols)):
-    #         # Get the corresponding character in cols
-    #         col_char = cols[j][i]
-    #         # Get the corresponding character in rows
-    #         row_char = rows[j][i]
-    #         # Determine which character to use in the combined board
-    #         if col_char not in ['.', 'S']:
-    #             row_str += col_char
-    #         elif row_char not in ['.', 'S']:
-    #             row_str += row_char
-    #         else:
-    #             row_str += '.'
-    #     # Add newline character after all columns in a row are processed
-    #     combined_board += row_str + '\n'
-    # # Remove extra newline character at the end of the string
-    # combined_board = combined_board.rstrip('\n')
-
-    # for i in range(len(rows)):
-    #     for j in range(len(cols)):
-    #         if cols[j][i] not in ('.', 'S'):
-    #             combined_board += cols[j][i]
-    #         elif rows.split('\n')[i][j] not in ('.', 'S'):
-    #             combined_board += rows.split('\n')[i][j]
-    #         else:
-    #             combined_board += '.'
-
-    #     if i != len(rows) - 1:
-    #         combined_board += '\n'
-
-    # print(combined_board)
-
-    # # Print the combined board string
-    # print("combined board:",combined_board)
-
-    # for i in range(len(rows)):
-    #     combined_row = ''
-    #     for j in range(len(rows[i])):
-    #         if cols[j][i] not in ['.', 'S']:
-    #             combined_row += cols[j][i]
-    #         else:
-    #             combined_row += rows[i][j]
-    #     sol_board += combined_row + '\n'
-
-    # for i, c in enumerate(rows):
-    #     if c=='\n':
-    #         #sol_board += c
-    #         continue
-    #     print("i and c: ", i, c)
-    #     if cols[i] not in ('.', 'S'):
-    #         sol_board += cols[i]
-    #     #lif c not in ('.', 'S'):
-    #     else:
-    #         sol_board += c
+    for i in range(len(rows)):
+        if cols[i] not in ['S', '.', '\n']:
+            sol_board += cols[i]
+        else:
+            sol_board += rows[i]
+        
 
     submarines_count = sol_board.count('S')
-    print("submarines count: ", submarines_count)
-    print(sol_board)
-    
-    # print("rows board with string method: \n", rows)
-    # print("\ncols board with string method: \n", cols)
+    # print("submarines count: ", submarines_count)
+    # print(sol_board)
 
     # check if the number of each type of ship is correct:
     if submarines_count == submarines and destroyers_count == destroyers and \
@@ -988,8 +937,6 @@ def check_ship_constraints(assignment, state):
         return True, sol_board
     
     return False, "wrong"
-
-    #TODO - redo everything from here. convert new_board into strings to iteratate better
 
 def check_ship_constraints_verybad(assignment, state):
     '''Given check if a full assignment (of a board) satisfies the original 
@@ -1311,14 +1258,6 @@ if __name__ == '__main__':
     # create the CSP:
     csp = CSP('Battleship', state.variables, conslist)
 
-    # random
-    print("PLEASE WORK")
-    print(check_ship_constraints({}, state))
-
-    # print("\n checking ship constraints: ", check_ship_constraints([], state))
-    # board = [['.', '.', '.', '^', '.', '.'], ['S', '.', '.', 'M', '.', '.'], ['.', '.', '.', 'v', '.', '.'], ['.', '.', '.', '.', '.', 'S'], ['.', '^', '.', '^', '.', '.'], ['.', 'v', '.', 'v', '.', 'S']]
-    # print("attempt at check board: ", check_ship_constraints({}, state))
-
     # ************************ run backtracking search ************************
     # print("\n********** Running backtracking search... **********")
     # start = time.time()
@@ -1331,27 +1270,27 @@ if __name__ == '__main__':
 
     # ********************************* run GAC *******************************
 
-    # print("\n********** Running GAC... **********")
-    # start = time.time()
-    # # call gac on unassigned variables:
-    # unassigned = []
-    # # print("state variables: ", state.variables)
-    # for var in state.variables:
-    #     if not var.isAssigned():
-    #         unassigned.append(var)
-    #     else:
-    #         var._curdom.remove(var.getValue())
+    print("\n********** Running GAC... **********")
+    start = time.time()
+    # call gac on unassigned variables:
+    unassigned = []
+    # print("state variables: ", state.variables)
+    for var in state.variables:
+        if not var.isAssigned():
+            unassigned.append(var)
+        else:
+            var._curdom.remove(var.getValue())
 
-    # # print("unassigned variaables before GAC: ", unassigned)
-    # assignment = csp.gac(unassigned, state)
-    # assignment = csp.solution
-    # # print(assignment)
-    # # assignment = {}
-    # # for i in state.variables:
-    # #     assignment[i] = i.getValue()
-    # # print("assignment after GAC: ", assignment)
-    # end = time.time()
-    # print("\nTime taken: ", end-start)
+    # print("unassigned variaables before GAC: ", unassigned)
+    assignment = csp.gac(unassigned, state)
+    assignment = csp.solution
+    # print(assignment)
+    # assignment = {}
+    # for i in state.variables:
+    #     assignment[i] = i.getValue()
+    # print("assignment after GAC: ", assignment)
+    end = time.time()
+    print("\nTime taken: ", end-start)
 
     # # ************************ print solution ********************************
     # print("\nSolution:")
