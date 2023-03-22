@@ -2,7 +2,9 @@
 
 ## Description
 
-This solver is created in the form of a Constraint Satisfaction Problem (CSP). Similar to the common game of battleship, battleship
+This solver is created in the form of a Constraint Satisfaction Problem (CSP) and the Arc Consistency (GAC) algorithm 
+for CSC384: Introduction to Algorithms course, which uses
+some of the provided starter code for class initializations. Similar to the common game of battleship, battleship
 solitaire is a game where there is a board that may or may not have any hints. Every cell on the board can be a part of a ship or 
 water. Each puzzle provides its own constraints:
 
@@ -25,7 +27,37 @@ Each input file has the following format:
 the second is the number of destroyers ('<>') the third is the number of cruisers ('<M>'), and the last is the number of battleships ('<MM>')
 * the remaining lines represent the board, where water is represented by '.' and an unknown cell is represented by '0'. The largest board size 
 accounted for is 10x10
+  
+Here is an example of an input text file: 
+  
+      43213321
+      22334203
+      3321
+      00000^00
+      00000000
+      00000000
+      0000000.
+      00000000
+      00000000
+      00000000
+      00000000
+  
+The several functions and lines in the main function serve to initialize constraint classes and read in the input file. 
+The output text file (output.txt) will be blank at first. Upon running the code, the solution board will be written into it. 
+Here is an example output text file:
+  
+      .^.^.^.S
+      .v.M.v..
+      ...v...S
+      ^.......
+      v.^.^...
+      ..M.M..S
+      ..v.M...
+      ....v...
 
 ## How to run it
 
-To run the program, 
+To run the program, ensure that the necessary files are in the same folder. The terminal command used is:
+        python3 battle.py --inputfile input.txt --outputfile output.txt
+
+The solution will be printed into the output file, and it will also be displayed in the terminal with the time elapsed.
